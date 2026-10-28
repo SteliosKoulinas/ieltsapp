@@ -1,0 +1,13 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# build output
+/backend/bin/
+*.exe
+
+# frontend (Day 3)
+node_modules/
+.svelte-kit/
+build/

@@ -1,0 +1,968 @@
+[
+  {
+    "slug": "vocab-allocate",
+    "type": "vocab",
+    "context": "The government decided to allocate more funding to public transport.",
+    "target_word": "allocate",
+    "intended_meaning": "to officially assign or distribute resources, such as money or time, for a particular purpose",
+    "topic": "government",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "original"
+  },
+  {
+    "slug": "vocab-mitigate",
+    "type": "vocab",
+    "context": "Planting trees along the river can mitigate the effects of flooding.",
+    "target_word": "mitigate",
+    "intended_meaning": "to make something less severe, harmful or serious",
+    "topic": "environment",
+    "cefr": "C1",
+    "tier": 1,
+    "source": "original"
+  },
+  {
+    "slug": "vocab-undermine",
+    "type": "vocab",
+    "context": "Constant criticism can undermine a student's confidence.",
+    "target_word": "undermine",
+    "intended_meaning": "to weaken something gradually, such as confidence, authority or an effort",
+    "topic": "education",
+    "cefr": "C1",
+    "tier": 1,
+    "source": "original"
+  },
+  {
+    "slug": "vocab-advocate",
+    "type": "vocab",
+    "context": "Many doctors advocate a diet that is rich in vegetables.",
+    "target_word": "advocate",
+    "intended_meaning": "to publicly recommend or support an idea or a course of action",
+    "topic": "health",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "original"
+  },
+  {
+    "slug": "vocab-ambiguous",
+    "type": "vocab",
+    "context": "The instructions were ambiguous, so students understood them in different ways.",
+    "target_word": "ambiguous",
+    "intended_meaning": "having more than one possible meaning, and therefore unclear",
+    "topic": "education",
+    "cefr": "B2",
+    "tier": 2,
+    "source": "original"
+  },
+  {
+    "slug": "vocab-comprehensive",
+    "type": "vocab",
+    "context": "The university offers a comprehensive programme that covers every aspect of marketing.",
+    "target_word": "comprehensive",
+    "intended_meaning": "including everything, or almost everything, that is needed or relevant; complete",
+    "topic": "education",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "original"
+  },
+  {
+    "slug": "vocab-constrain",
+    "type": "vocab",
+    "context": "Limited budgets constrain what local councils can achieve.",
+    "target_word": "constrain",
+    "intended_meaning": "to limit or restrict what someone or something can do",
+    "topic": "economy",
+    "cefr": "C1",
+    "tier": 1,
+    "source": "original"
+  },
+  {
+    "slug": "vocab-deteriorate",
+    "type": "vocab",
+    "context": "Air quality can deteriorate quickly in busy cities.",
+    "target_word": "deteriorate",
+    "intended_meaning": "to become worse over time",
+    "topic": "environment",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "original"
+  },
+  {
+    "slug": "vocab-diminish",
+    "type": "vocab",
+    "context": "The benefits of the new law will diminish if it is not enforced.",
+    "target_word": "diminish",
+    "intended_meaning": "to become smaller, weaker or less important",
+    "topic": "law",
+    "cefr": "C1",
+    "tier": 1,
+    "source": "original"
+  },
+  {
+    "slug": "vocab-enhance",
+    "type": "vocab",
+    "context": "Regular exercise can enhance a person's ability to concentrate.",
+    "target_word": "enhance",
+    "intended_meaning": "to improve something or make it better, stronger or more valuable",
+    "topic": "health",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "original"
+  },
+  {
+    "slug": "vocab-facilitate",
+    "type": "vocab",
+    "context": "Online platforms facilitate communication between teachers and parents.",
+    "target_word": "facilitate",
+    "intended_meaning": "to make a process or an action easier",
+    "topic": "technology",
+    "cefr": "C1",
+    "tier": 1,
+    "source": "original"
+  },
+  {
+    "slug": "vocab-implement",
+    "type": "vocab",
+    "context": "The school plans to implement a new attendance policy next term.",
+    "target_word": "implement",
+    "intended_meaning": "to put a plan, system or decision into action",
+    "topic": "education",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "original"
+  },
+  {
+    "slug": "vocab-inevitable",
+    "type": "vocab",
+    "context": "With ageing populations, higher healthcare costs seem inevitable.",
+    "target_word": "inevitable",
+    "intended_meaning": "certain to happen and impossible to avoid",
+    "topic": "society",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "original"
+  },
+  {
+    "slug": "vocab-mandatory",
+    "type": "vocab",
+    "context": "Wearing a helmet is mandatory for all cyclists in some countries.",
+    "target_word": "mandatory",
+    "intended_meaning": "required by law or by a rule; not optional",
+    "topic": "law",
+    "cefr": "B2",
+    "tier": 2,
+    "source": "original"
+  },
+  {
+    "slug": "vocab-obsolete",
+    "type": "vocab",
+    "context": "Many office skills have become obsolete as automation spreads.",
+    "target_word": "obsolete",
+    "intended_meaning": "no longer used or useful because something newer or better has replaced it",
+    "topic": "technology",
+    "cefr": "C1",
+    "tier": 2,
+    "source": "original"
+  },
+  {
+    "slug": "vocab-phenomenon",
+    "type": "vocab",
+    "context": "Urban migration is a global phenomenon that affects both developed and developing countries.",
+    "target_word": "phenomenon",
+    "intended_meaning": "a fact or event, especially in society or nature, that can be observed",
+    "topic": "society",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "original"
+  },
+  {
+    "slug": "vocab-prioritise",
+    "type": "vocab",
+    "context": "Governments must prioritise education when funds are limited.",
+    "target_word": "prioritise",
+    "intended_meaning": "to treat something as more important than other things and deal with it first",
+    "topic": "government",
+    "cefr": "B2",
+    "tier": 2,
+    "source": "original"
+  },
+  {
+    "slug": "vocab-substantial",
+    "type": "vocab",
+    "context": "The company made a substantial investment in renewable energy.",
+    "target_word": "substantial",
+    "intended_meaning": "large in amount, size or importance",
+    "topic": "business",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "original"
+  },
+  {
+    "slug": "vocab-sustain",
+    "type": "vocab",
+    "context": "A country cannot sustain rapid growth without investing in infrastructure.",
+    "target_word": "sustain",
+    "intended_meaning": "to keep something going at the same level or rate over a period of time",
+    "topic": "economy",
+    "cefr": "C1",
+    "tier": 1,
+    "source": "original"
+  },
+  {
+    "slug": "vocab-widespread",
+    "type": "vocab",
+    "context": "Concern about plastic pollution is now widespread.",
+    "target_word": "widespread",
+    "intended_meaning": "existing or happening in many places or among many people",
+    "topic": "environment",
+    "cefr": "B1",
+    "tier": 1,
+    "source": "original"
+  },
+  {
+    "slug": "writing-technology-communication",
+    "type": "writing",
+    "prompt": "Do you think technology has improved the way people communicate? Explain your opinion.",
+    "expected_length": "2 to 3 sentences",
+    "criteria": [
+      "gives a clear opinion",
+      "gives at least one reason",
+      "grammatical accuracy",
+      "vocabulary use"
+    ],
+    "topic": "technology",
+    "cefr": "B1"
+  },
+  {
+    "slug": "writing-work-from-home",
+    "type": "writing",
+    "prompt": "Some people prefer to work from home instead of going to an office. What are the advantages of working from home?",
+    "expected_length": "2 to 3 sentences",
+    "criteria": [
+      "answers the question directly",
+      "gives a reason or an example",
+      "grammatical accuracy",
+      "natural word choice"
+    ],
+    "topic": "work",
+    "cefr": "B1"
+  },
+  {
+    "slug": "writing-public-transport",
+    "type": "writing",
+    "prompt": "Should governments invest more in public transport than in roads? Give one or two reasons.",
+    "expected_length": "2 to 3 sentences",
+    "criteria": [
+      "gives a clear opinion",
+      "gives at least one reason",
+      "grammatical accuracy",
+      "vocabulary use"
+    ],
+    "topic": "transport",
+    "cefr": "B2"
+  },
+  {
+    "slug": "writing-online-study",
+    "type": "writing",
+    "prompt": "Is studying online as effective as studying in a classroom? Explain your view.",
+    "expected_length": "2 to 3 sentences",
+    "criteria": [
+      "gives a clear opinion",
+      "gives at least one reason",
+      "grammatical accuracy",
+      "vocabulary use"
+    ],
+    "topic": "education",
+    "cefr": "B2"
+  },
+  {
+    "slug": "writing-city-or-countryside",
+    "type": "writing",
+    "prompt": "Would you prefer to live in a big city or in the countryside? Explain why.",
+    "expected_length": "2 to 3 sentences",
+    "criteria": [
+      "answers the question directly",
+      "gives a reason or an example",
+      "grammatical accuracy",
+      "natural word choice"
+    ],
+    "topic": "lifestyle",
+    "cefr": "B1"
+  },
+  {
+    "slug": "writing-social-media-youth",
+    "type": "writing",
+    "prompt": "Does social media have more positive or more negative effects on young people? Give your opinion.",
+    "expected_length": "2 to 3 sentences",
+    "criteria": [
+      "gives a clear opinion",
+      "gives at least one reason",
+      "grammatical accuracy",
+      "vocabulary use"
+    ],
+    "topic": "society",
+    "cefr": "B2"
+  },
+  {
+    "slug": "writing-tourism",
+    "type": "writing",
+    "prompt": "Tourism can bring money to a region but it can also cause problems. Describe one benefit and one problem.",
+    "expected_length": "2 to 3 sentences",
+    "criteria": [
+      "describes both sides asked for",
+      "gives a reason or an example",
+      "sentence structure",
+      "linking ideas"
+    ],
+    "topic": "tourism",
+    "cefr": "B2"
+  },
+  {
+    "slug": "writing-healthy-habit",
+    "type": "writing",
+    "prompt": "What is one habit that people should change to live a healthier life, and why?",
+    "expected_length": "2 to 3 sentences",
+    "criteria": [
+      "answers the question directly",
+      "gives a reason or an example",
+      "grammatical accuracy",
+      "natural word choice"
+    ],
+    "topic": "health",
+    "cefr": "B1"
+  },
+  {
+    "slug": "writing-free-university",
+    "type": "writing",
+    "prompt": "Should university education be free for everyone? Explain your opinion.",
+    "expected_length": "2 to 3 sentences",
+    "criteria": [
+      "gives a clear opinion",
+      "gives at least one reason",
+      "grammatical accuracy",
+      "vocabulary use"
+    ],
+    "topic": "education",
+    "cefr": "B2"
+  },
+  {
+    "slug": "writing-fast-food",
+    "type": "writing",
+    "prompt": "Why do you think fast food is so popular, and is this a problem?",
+    "expected_length": "2 to 3 sentences",
+    "criteria": [
+      "describes both sides asked for",
+      "gives a reason or an example",
+      "sentence structure",
+      "linking ideas"
+    ],
+    "topic": "health",
+    "cefr": "B2"
+  },
+  {
+    "slug": "writing-volunteering",
+    "type": "writing",
+    "prompt": "Some people give their free time to volunteer. Why do you think they do this?",
+    "expected_length": "2 to 3 sentences",
+    "criteria": [
+      "answers the question directly",
+      "gives a reason or an example",
+      "grammatical accuracy",
+      "natural word choice"
+    ],
+    "topic": "society",
+    "cefr": "B1"
+  },
+  {
+    "slug": "writing-work-life-balance",
+    "type": "writing",
+    "prompt": "How can people achieve a good balance between work and personal life?",
+    "expected_length": "2 to 3 sentences",
+    "criteria": [
+      "answers the question directly",
+      "gives a reason or an example",
+      "grammatical accuracy",
+      "natural word choice"
+    ],
+    "topic": "work",
+    "cefr": "B2"
+  },
+  {
+    "slug": "writing-museums",
+    "type": "writing",
+    "prompt": "Should museums be free to enter? Give reasons for your answer.",
+    "expected_length": "2 to 3 sentences",
+    "criteria": [
+      "gives a clear opinion",
+      "gives at least one reason",
+      "grammatical accuracy",
+      "vocabulary use"
+    ],
+    "topic": "culture",
+    "cefr": "B1"
+  },
+  {
+    "slug": "writing-plastic-waste",
+    "type": "writing",
+    "prompt": "What can individuals do to reduce plastic waste? Explain one or two actions.",
+    "expected_length": "2 to 3 sentences",
+    "criteria": [
+      "answers the question directly",
+      "gives a reason or an example",
+      "grammatical accuracy",
+      "natural word choice"
+    ],
+    "topic": "environment",
+    "cefr": "B1"
+  },
+  {
+    "slug": "vocab-address",
+    "type": "vocab",
+    "context": "To address the shortage of skilled workers, several companies now offer paid training.",
+    "target_word": "address",
+    "intended_meaning": "to deal with a problem or issue",
+    "topic": "work",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-alleviate",
+    "type": "vocab",
+    "context": "The new clinic is intended to alleviate pressure on the city's main hospital.",
+    "target_word": "alleviate",
+    "intended_meaning": "to make pain or a problem less severe",
+    "topic": "health",
+    "cefr": "C1",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-assess",
+    "type": "vocab",
+    "context": "Teachers assess students' progress through a combination of tests and projects.",
+    "target_word": "assess",
+    "intended_meaning": "to judge the quality or importance of something",
+    "topic": "education",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-attribute",
+    "type": "vocab",
+    "context": "Researchers attribute the rise in obesity to cheap processed food.",
+    "target_word": "attribute",
+    "intended_meaning": "to say that something is caused by a particular thing",
+    "topic": "health",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-comprise",
+    "type": "vocab",
+    "context": "The six modules comprise a mix of theory and practical work.",
+    "target_word": "comprise",
+    "intended_meaning": "to consist of or be made up of",
+    "topic": "education",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-conduct",
+    "type": "vocab",
+    "context": "Scientists conduct regular tests to check the water quality.",
+    "target_word": "conduct",
+    "intended_meaning": "to carry out an activity, especially research or a test",
+    "topic": "environment",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-derive",
+    "type": "vocab",
+    "context": "Many medicines derive from plants found in tropical forests.",
+    "target_word": "derive",
+    "intended_meaning": "to get something from a source",
+    "topic": "health",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-distinguish",
+    "type": "vocab",
+    "context": "It is important to distinguish between a fact and an opinion.",
+    "target_word": "distinguish",
+    "intended_meaning": "to recognise the difference between two things",
+    "topic": "education",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-emerge",
+    "type": "vocab",
+    "context": "New patterns of migration emerge when jobs become available in cities.",
+    "target_word": "emerge",
+    "intended_meaning": "to appear or become known",
+    "topic": "society",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-impose",
+    "type": "vocab",
+    "context": "Several cities impose a tax on drivers who enter the centre.",
+    "target_word": "impose",
+    "intended_meaning": "to officially force a rule, tax or punishment",
+    "topic": "government",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-incorporate",
+    "type": "vocab",
+    "context": "Good essays incorporate evidence from reliable sources.",
+    "target_word": "incorporate",
+    "intended_meaning": "to include something as part of a larger whole",
+    "topic": "education",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-indicate",
+    "type": "vocab",
+    "context": "The figures indicate a steady decline in car ownership among young people.",
+    "target_word": "indicate",
+    "intended_meaning": "to show or suggest that something is true",
+    "topic": "transport",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-maintain",
+    "type": "vocab",
+    "context": "Regular exercise helps people maintain a healthy weight.",
+    "target_word": "maintain",
+    "intended_meaning": "to keep something at the same level or in good condition",
+    "topic": "health",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-perceive",
+    "type": "vocab",
+    "context": "Many employees perceive remote work as a benefit rather than a problem.",
+    "target_word": "perceive",
+    "intended_meaning": "to understand or think of something in a particular way",
+    "topic": "work",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-regulate",
+    "type": "vocab",
+    "context": "New laws regulate how companies store personal data.",
+    "target_word": "regulate",
+    "intended_meaning": "to control an activity with official rules",
+    "topic": "technology",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-restrict",
+    "type": "vocab",
+    "context": "Some cities restrict the number of cars allowed in the centre.",
+    "target_word": "restrict",
+    "intended_meaning": "to limit the size, amount or range of something",
+    "topic": "transport",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-tackle",
+    "type": "vocab",
+    "context": "The council has promised to tackle youth unemployment.",
+    "target_word": "tackle",
+    "intended_meaning": "to make a determined effort to deal with a problem",
+    "topic": "society",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-transform",
+    "type": "vocab",
+    "context": "Digital tools can transform the way students research and write.",
+    "target_word": "transform",
+    "intended_meaning": "to change something completely, usually for the better",
+    "topic": "technology",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-viable",
+    "type": "vocab",
+    "context": "Solar power is now a viable alternative to coal in many regions.",
+    "target_word": "viable",
+    "intended_meaning": "able to work successfully or continue in the long term",
+    "topic": "environment",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-feasible",
+    "type": "vocab",
+    "context": "It is not feasible to build a new railway line without public funding.",
+    "target_word": "feasible",
+    "intended_meaning": "possible to do in practice",
+    "topic": "transport",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-significant",
+    "type": "vocab",
+    "context": "There has been a significant increase in the number of online courses.",
+    "target_word": "significant",
+    "intended_meaning": "large or important enough to have an effect",
+    "topic": "education",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-profound",
+    "type": "vocab",
+    "context": "The internet has had a profound effect on how people access information.",
+    "target_word": "profound",
+    "intended_meaning": "very great or deeply felt",
+    "topic": "technology",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-apparent",
+    "type": "vocab",
+    "context": "It soon became apparent that the original plan would cost too much.",
+    "target_word": "apparent",
+    "intended_meaning": "easy to see or understand; seeming to be true",
+    "topic": "government",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-relevant",
+    "type": "vocab",
+    "context": "Candidates should support their answer with relevant examples.",
+    "target_word": "relevant",
+    "intended_meaning": "closely connected with the subject or situation",
+    "topic": "education",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-reliable",
+    "type": "vocab",
+    "context": "The report is based on reliable data from national surveys.",
+    "target_word": "reliable",
+    "intended_meaning": "able to be trusted or depended on",
+    "topic": "society",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-sufficient",
+    "type": "vocab",
+    "context": "The evidence was not sufficient to prove that the policy had worked.",
+    "target_word": "sufficient",
+    "intended_meaning": "enough for a particular purpose",
+    "topic": "government",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-renewable",
+    "type": "vocab",
+    "context": "The country aims to produce half of its electricity from renewable sources.",
+    "target_word": "renewable",
+    "intended_meaning": "able to be replaced naturally without running out",
+    "topic": "environment",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-infrastructure",
+    "type": "vocab",
+    "context": "Poor transport infrastructure limits economic growth in rural areas.",
+    "target_word": "infrastructure",
+    "intended_meaning": "the basic systems and services a society needs, such as roads and power",
+    "topic": "transport",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-inequality",
+    "type": "vocab",
+    "context": "Income inequality has widened over the past twenty years.",
+    "target_word": "inequality",
+    "intended_meaning": "an unfair difference in wealth, opportunity or treatment",
+    "topic": "society",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-incentive",
+    "type": "vocab",
+    "context": "Tax reductions can act as an incentive for companies to invest.",
+    "target_word": "incentive",
+    "intended_meaning": "something that encourages a person or organisation to act",
+    "topic": "economy",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-expenditure",
+    "type": "vocab",
+    "context": "Public expenditure on health has risen faster than inflation.",
+    "target_word": "expenditure",
+    "intended_meaning": "the total amount of money spent, especially by a government or organisation",
+    "topic": "government",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-consumption",
+    "type": "vocab",
+    "context": "High energy consumption is one of the main causes of climate change.",
+    "target_word": "consumption",
+    "intended_meaning": "the use of resources such as energy or food",
+    "topic": "environment",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-congestion",
+    "type": "vocab",
+    "context": "Traffic congestion costs the economy billions of pounds every year.",
+    "target_word": "congestion",
+    "intended_meaning": "the state of being too full or blocked, especially with traffic",
+    "topic": "transport",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-emissions",
+    "type": "vocab",
+    "context": "The city plans to cut carbon emissions by forty percent.",
+    "target_word": "emissions",
+    "intended_meaning": "gases released into the air, especially by vehicles or factories",
+    "topic": "environment",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-biodiversity",
+    "type": "vocab",
+    "context": "Protecting wetlands is essential for maintaining biodiversity.",
+    "target_word": "biodiversity",
+    "intended_meaning": "the variety of plants and animals in a particular place",
+    "topic": "environment",
+    "cefr": "C1",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-surveillance",
+    "type": "vocab",
+    "context": "The council installed cameras for surveillance in the town centre.",
+    "target_word": "surveillance",
+    "intended_meaning": "the careful watching of a person or place, often by police or cameras",
+    "topic": "law",
+    "cefr": "C1",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-literacy",
+    "type": "vocab",
+    "context": "Adult literacy programmes help people read and write with confidence.",
+    "target_word": "literacy",
+    "intended_meaning": "the ability to read and write",
+    "topic": "education",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-social-mobility",
+    "type": "vocab",
+    "context": "Education is often seen as the main route to social mobility.",
+    "target_word": "social mobility",
+    "intended_meaning": "the movement of people between different social classes",
+    "topic": "society",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-carbon-footprint",
+    "type": "vocab",
+    "context": "Choosing public transport can reduce your carbon footprint.",
+    "target_word": "carbon footprint",
+    "intended_meaning": "the amount of carbon dioxide produced by a person or activity",
+    "topic": "environment",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-affordable-housing",
+    "type": "vocab",
+    "context": "The city needs more affordable housing for young families.",
+    "target_word": "affordable housing",
+    "intended_meaning": "homes that people on low or average incomes can pay for",
+    "topic": "society",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-demonstrate",
+    "type": "vocab",
+    "context": "The results demonstrate a clear link between sleep and concentration.",
+    "target_word": "demonstrate",
+    "intended_meaning": "to show clearly that something is true",
+    "topic": "health",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-emphasise",
+    "type": "vocab",
+    "context": "Teachers should emphasise the importance of checking sources.",
+    "target_word": "emphasise",
+    "intended_meaning": "to give special importance or attention to something",
+    "topic": "education",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-fundamental",
+    "type": "vocab",
+    "context": "Access to clean water is a fundamental human right.",
+    "target_word": "fundamental",
+    "intended_meaning": "basic and necessary",
+    "topic": "society",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-generate",
+    "type": "vocab",
+    "context": "Wind farms generate electricity without burning fuel.",
+    "target_word": "generate",
+    "intended_meaning": "to produce something such as energy, income or ideas",
+    "topic": "environment",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-justify",
+    "type": "vocab",
+    "context": "It is hard to justify spending so much money on one project.",
+    "target_word": "justify",
+    "intended_meaning": "to give a good reason for something",
+    "topic": "government",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-obtain",
+    "type": "vocab",
+    "context": "Students must obtain permission before using the laboratory.",
+    "target_word": "obtain",
+    "intended_meaning": "to get something, especially by effort",
+    "topic": "education",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-promote",
+    "type": "vocab",
+    "context": "The campaign aims to promote healthier eating among teenagers.",
+    "target_word": "promote",
+    "intended_meaning": "to encourage or support something",
+    "topic": "health",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-reveal",
+    "type": "vocab",
+    "context": "The figures reveal a growing gap between rich and poor.",
+    "target_word": "reveal",
+    "intended_meaning": "to make something known that was not known before",
+    "topic": "society",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-undergo",
+    "type": "vocab",
+    "context": "Patients undergo a series of tests before the operation.",
+    "target_word": "undergo",
+    "intended_meaning": "to experience something, especially a change or medical treatment",
+    "topic": "health",
+    "cefr": "C1",
+    "tier": 1,
+    "source": "generated"
+  },
+  {
+    "slug": "vocab-welfare",
+    "type": "vocab",
+    "context": "The welfare system provides support for people who cannot work.",
+    "target_word": "welfare",
+    "intended_meaning": "the health and happiness of people, or government support for them",
+    "topic": "society",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  }
+]

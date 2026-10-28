@@ -1,0 +1,59 @@
+# Three services: PostgreSQL, the Go API, and nginx serving the SvelteKit build.
+# Only 127.0.0.1 is published, so nothing is reachable from other machines.
+name: ielts-practice
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ielts}
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (create it with bash scripts/init-env.sh)}"
+      POSTGRES_DB: ${POSTGRES_DB:-ielts}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    # No published port: only the api service can reach the database.
+
+  api:
+    build: ./backend
+    restart: on-failure:5
+    environment:
+      GEMINI_API_KEY: "${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env}"
+      GEMINI_MODEL: "${GEMINI_MODEL:?Set GEMINI_MODEL in .env}"
+      EVAL_RATE_PER_MINUTE: ${EVAL_RATE_PER_MINUTE:-10}
+      NEW_VOCAB_PER_DAY: ${NEW_VOCAB_PER_DAY:-8}
+      SEED_FILE: /content/generated.json
+      DATABASE_URL: postgres://${POSTGRES_USER:-ielts}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-ielts}?sslmode=disable
+      PORT: "8080"
+    volumes:
+      # Extra content batches. Restart the api service after changing a file.
+      - ./content:/content:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      # Published on the loopback only, for curl and for the Vite dev server.
+      - "127.0.0.1:${API_PORT:-8081}:8080"
+    healthcheck:
+      test: ["CMD", "api", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${WEB_PORT:-8080}:80"
+
+volumes:
+  pgdata:
