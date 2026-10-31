@@ -80,8 +80,8 @@ func TestLoadWithDatabaseRequiresURL(t *testing.T) {
 	if err != nil || cfg.EvalRatePerMinute != 10 {
 		t.Fatalf("cfg=%+v err=%v", cfg, err)
 	}
-	if cfg.NewVocabPerDay != 8 {
-		t.Errorf("default NEW_VOCAB_PER_DAY should be 8, got %d", cfg.NewVocabPerDay)
+	if cfg.NewVocabPerDay != 0 {
+		t.Errorf("default NEW_VOCAB_PER_DAY should be 0 (no limit), got %d", cfg.NewVocabPerDay)
 	}
 }
 

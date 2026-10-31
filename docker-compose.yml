@@ -26,13 +26,16 @@ services:
       GEMINI_API_KEY: "${GEMINI_API_KEY:?Set GEMINI_API_KEY in .env}"
       GEMINI_MODEL: "${GEMINI_MODEL:?Set GEMINI_MODEL in .env}"
       EVAL_RATE_PER_MINUTE: ${EVAL_RATE_PER_MINUTE:-10}
-      NEW_VOCAB_PER_DAY: ${NEW_VOCAB_PER_DAY:-8}
+      NEW_VOCAB_PER_DAY: ${NEW_VOCAB_PER_DAY:-0}
       SEED_FILE: /content/generated.json
+      SEED_DIR: /content/batches
+      CONTENT_DIR: /content
       DATABASE_URL: postgres://${POSTGRES_USER:-ielts}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-ielts}?sslmode=disable
       PORT: "8080"
     volumes:
-      # Extra content batches. Restart the api service after changing a file.
-      - ./content:/content:ro
+      # Extra content batches. The API reads them at startup. The manual
+      # generator writes new batch files here, so this mount is writable.
+      - ./content:/content
     depends_on:
       db:
         condition: service_healthy

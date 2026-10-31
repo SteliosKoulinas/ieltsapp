@@ -20,7 +20,8 @@ Schema:
   "confidence": "high" | "medium" | "low"
 }
 
-Allowed categories: articles, verb_tense, subject_verb_agreement, prepositions, missing_subject, word_choice, collocations, sentence_structure, linking, clarity, vocabulary_meaning, noun_number.
+Allowed categories: articles, verb_tense, subject_verb_agreement, prepositions, missing_subject, word_choice, collocations, sentence_structure, linking, clarity, vocabulary_meaning, noun_number, listening_spelling, listening_number, listening_word, listening_omission, listening_extra.
+The listening_ categories are used only in listening exercises.
 
 Category notes:
 - "articles" is only for a missing, extra or wrong a, an or the.
@@ -72,6 +73,25 @@ Rules:
 - An answer that is grammatical but off-topic is "incorrect". Add one issue with category "clarity", an empty original, and an explanation that it does not address the prompt.
 - improved_version is the learner's own answer corrected with minimal changes, keeping their ideas and voice. It is not a different essay.`
 
+const listeningRules = `
+
+This is a LISTENING DICTATION exercise. The learner heard a short recording and typed what they heard. You cannot hear the audio. Use the reference transcript and the accepted forms.
+
+Verdict reflects transcription accuracy only, not the learner's grammar or style:
+- correct: the same wording and numbers as the reference. Ignore differences in capitalisation and punctuation. Digits and number words are equivalent. An accepted form is correct.
+- mostly_correct: one small error that does not change the key information, for example one spelling slip, a singular instead of a plural, or a missing article.
+- partially_correct: several small errors, or one important word or number is wrong, but most of the item is correct.
+- incorrect: mostly missing or wrong, including a wrong key number in a phone number, address, price, date, time or reference.
+
+Rules:
+- Compare the answer with the reference transcript and the accepted forms. Do not invent a different version.
+- For numeric answers, accept digits or words, with or without spaces, hyphens, commas, currency symbols or units, when the value is the same.
+- For text answers, do not penalise a standard British or American spelling of the same word.
+- Quote the learner's exact text in "original", including their spelling. Do not quote the reference transcript when the learner wrote something else.
+- Use "listening_number" for a wrong or missing digit, number or unit; "listening_spelling" for a spelling mistake; "listening_word" for a wrong word; "listening_omission" for something left out; "listening_extra" for something added.
+- Report at most 6 issues, most important first.
+- improved_version must be the reference transcript exactly, with its original punctuation. Do not rewrite it.`
+
 // SystemPromptFor returns the system prompt for an exercise type.
 func SystemPromptFor(exerciseType string) string {
 	switch exerciseType {
@@ -79,6 +99,8 @@ func SystemPromptFor(exerciseType string) string {
 		return basePrompt + vocabRules
 	case TypeWriting:
 		return basePrompt + writingRules
+	case TypeListening:
+		return basePrompt + listeningRules
 	default:
 		return basePrompt
 	}
@@ -99,6 +121,12 @@ func BuildUserPrompt(r Request) string {
 		if len(r.Criteria) > 0 {
 			fmt.Fprintf(&b, "Assessment criteria: %s\n", strings.Join(r.Criteria, "; "))
 		}
+	case TypeListening:
+		fmt.Fprintf(&b, "Listening mode: %s\n", r.ListeningMode)
+		fmt.Fprintf(&b, "Reference transcript: %s\n", r.ExpectedText)
+		if len(r.AcceptedForms) > 0 {
+			fmt.Fprintf(&b, "Other accepted forms: %s\n", strings.Join(r.AcceptedForms, " | "))
+		}
 	}
 	fmt.Fprintf(&b, "\nLearner answer (between the markers):\n<<<\n%s\n>>>\n", r.Answer)
 	return b.String()
@@ -108,6 +136,6 @@ func BuildUserPrompt(r Request) string {
 // whenever a prompt changes, so every stored evaluation records which prompt
 // produced it.
 func PromptVersion() string {
-	h := sha256.Sum256([]byte(SystemPromptFor(TypeVocab) + "\x00" + SystemPromptFor(TypeWriting)))
+	h := sha256.Sum256([]byte(SystemPromptFor(TypeVocab) + "\x00" + SystemPromptFor(TypeWriting) + "\x00" + SystemPromptFor(TypeListening)))
 	return fmt.Sprintf("%x", h[:4])
 }

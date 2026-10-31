@@ -15,7 +15,13 @@ func TestSystemPromptFor(t *testing.T) {
 	if !strings.Contains(SystemPromptFor(TypeWriting), "Do not penalize a concise answer") {
 		t.Error("writing prompt missing concise-answer rule")
 	}
-	for _, c := range []string{"vocabulary_meaning", "missing_subject", "articles", "noun_number"} {
+	if !strings.Contains(SystemPromptFor(TypeListening), "LISTENING DICTATION exercise") {
+		t.Error("listening prompt missing listening rules")
+	}
+	if strings.Contains(SystemPromptFor(TypeWriting), "LISTENING DICTATION") {
+		t.Error("writing prompt must not contain listening rules")
+	}
+	for _, c := range []string{"vocabulary_meaning", "missing_subject", "articles", "noun_number", "listening_spelling", "listening_number"} {
 		if !strings.Contains(SystemPromptFor(TypeWriting), c) {
 			t.Errorf("prompt missing category %s", c)
 		}
@@ -38,6 +44,13 @@ func TestBuildUserPrompt(t *testing.T) {
 	if strings.Contains(w, "Target word") {
 		t.Error("writing prompt must not mention target word")
 	}
+	l := BuildUserPrompt(Request{Type: TypeListening, Prompt: "P", ListeningMode: "numeric",
+		ExpectedText: "020 7946 0123", AcceptedForms: []string{"02079460123"}, Answer: "020 7946 0123"})
+	for _, want := range []string{"Listening mode: numeric", "Reference transcript: 020 7946 0123", "Other accepted forms: 02079460123"} {
+		if !strings.Contains(l, want) {
+			t.Errorf("listening user prompt missing %q", want)
+		}
+	}
 }
 
 func TestRequestValidate(t *testing.T) {
@@ -49,6 +62,9 @@ func TestRequestValidate(t *testing.T) {
 		{"vocab ok", Request{Type: TypeVocab, Prompt: "p", TargetWord: "w", IntendedMeaning: "m", Answer: "a"}, false},
 		{"vocab missing meaning", Request{Type: TypeVocab, Prompt: "p", TargetWord: "w", Answer: "a"}, true},
 		{"writing ok", Request{Type: TypeWriting, Prompt: "p", Answer: "a"}, false},
+		{"listening ok", Request{Type: TypeListening, Prompt: "p", ExpectedText: "e", ListeningMode: "text", Answer: "a"}, false},
+		{"listening missing transcript", Request{Type: TypeListening, Prompt: "p", ListeningMode: "text", Answer: "a"}, true},
+		{"listening bad mode", Request{Type: TypeListening, Prompt: "p", ExpectedText: "e", ListeningMode: "sound", Answer: "a"}, true},
 		{"unknown type", Request{Type: "grammar", Prompt: "p", Answer: "a"}, true},
 		{"empty answer", Request{Type: TypeWriting, Prompt: "p", Answer: " "}, true},
 		{"empty prompt", Request{Type: TypeWriting, Answer: "a"}, true},

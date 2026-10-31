@@ -23,6 +23,15 @@ export function percent(part: number, total: number): number {
 	return total === 0 ? 0 : Math.round((part / total) * 100);
 }
 
+/** Milliseconds as "12.4s" or "1m 05s". */
+export function formatDuration(ms: number): string {
+	const seconds = Math.max(0, ms) / 1000;
+	if (seconds < 60) return `${seconds.toFixed(1)}s`;
+	const minutes = Math.floor(seconds / 60);
+	const rest = Math.round(seconds % 60);
+	return `${minutes}m ${rest.toString().padStart(2, '0')}s`;
+}
+
 export function userTimeZone(): string {
 	try {
 		return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';

@@ -40,8 +40,9 @@ func (e *RateLimitError) Daily() bool {
 }
 
 const (
-	TypeVocab   = "vocab"
-	TypeWriting = "writing"
+	TypeVocab     = "vocab"
+	TypeWriting   = "writing"
+	TypeListening = "listening"
 )
 
 // Request is everything the evaluator needs. Nothing else is sent to the LLM.
@@ -55,6 +56,13 @@ type Request struct {
 	ExpectedLength  string   `json:"expected_length,omitempty"`  // writing
 	Criteria        []string `json:"criteria,omitempty"`         // writing
 	Answer          string   `json:"answer"`
+
+	// Listening only. ExpectedText is the reference transcript, never sent to
+	// the browser before the answer is submitted. AcceptedForms holds other
+	// correct renderings, mainly for numbers.
+	ExpectedText  string   `json:"expected_text,omitempty"`
+	AcceptedForms []string `json:"accepted_forms,omitempty"`
+	ListeningMode string   `json:"listening_mode,omitempty"`
 }
 
 func (r Request) Validate() error {
@@ -64,6 +72,13 @@ func (r Request) Validate() error {
 			return fmt.Errorf("%w: vocab needs target_word and intended_meaning", ErrInvalidRequest)
 		}
 	case TypeWriting:
+	case TypeListening:
+		if strings.TrimSpace(r.ExpectedText) == "" {
+			return fmt.Errorf("%w: listening needs expected_text", ErrInvalidRequest)
+		}
+		if r.ListeningMode != "text" && r.ListeningMode != "numeric" {
+			return fmt.Errorf("%w: listening_mode must be text or numeric", ErrInvalidRequest)
+		}
 	default:
 		return fmt.Errorf("%w: unknown type %q", ErrInvalidRequest, r.Type)
 	}

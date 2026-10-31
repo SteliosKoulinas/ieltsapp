@@ -10,6 +10,18 @@
 	} from '#lib/api';
 	import { newId } from '#lib/uuid';
 	import { userTimeZone } from '#lib/format';
+	import {
+		alert,
+		alertTitle,
+		answerText,
+		btn,
+		btnPrimary,
+		card,
+		muted,
+		narrow,
+		small,
+		textarea as textareaClass
+	} from '#lib/ui';
 	import ExerciseCard from '#lib/components/ExerciseCard.svelte';
 	import Feedback from '#lib/components/Feedback.svelte';
 
@@ -144,14 +156,18 @@
 
 <svelte:head><title>Practice · IELTS Practice</title></svelte:head>
 
-<div class="narrow">
-	<div class="top">
-		<h1>Practice</h1>
-		<div class="modes" role="group" aria-label="Exercise type">
+<div class={narrow}>
+	<div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+		<h1 class="m-0 text-[1.75rem] font-bold tracking-[-0.01em]">Practice</h1>
+		<div
+			class="inline-flex overflow-hidden rounded-full border-[1.5px] border-neutral-900 dark:border-neutral-100"
+			role="group"
+			aria-label="Exercise type"
+		>
 			{#each modes as m (m.value)}
 				<button
 					type="button"
-					class="mode"
+					class="cursor-pointer border-0 bg-transparent px-[0.95rem] py-[0.4rem] text-[0.9rem] font-semibold text-neutral-900 aria-pressed:bg-neutral-900 aria-pressed:text-white dark:text-neutral-100 dark:aria-pressed:bg-neutral-100 dark:aria-pressed:text-neutral-900"
 					aria-pressed={mode === m.value}
 					onclick={() => changeMode(m.value)}>{m.label}</button
 				>
@@ -160,31 +176,31 @@
 	</div>
 
 	{#if loading}
-		<div class="card" aria-busy="true"><p class="muted">Loading an exercise…</p></div>
+		<div class={card} aria-busy="true"><p class={muted}>Loading an exercise…</p></div>
 	{:else if loadError}
-		<div class="alert" role="alert">
-			<strong>
+		<div class={alert} role="alert">
+			<strong class={alertTitle}>
 				{#if loadErrorCode === 'daily_limit_reached'}New-word limit reached
 				{:else if loadErrorCode === 'nothing_due'}Nothing due right now
 				{:else}Could not load an exercise{/if}
 			</strong>
 			<span>{loadError}</span>
 		</div>
-		<div class="actions">
+		<div class="flex flex-wrap gap-[0.6rem]">
 			{#if loadErrorCode === 'daily_limit_reached' || loadErrorCode === 'nothing_due'}
-				<button class="btn primary" type="button" onclick={() => changeMode('writing')}>
+				<button class={btnPrimary} type="button" onclick={() => changeMode('writing')}>
 					Practice writing instead
 				</button>
 			{/if}
-			<button class="btn" type="button" onclick={loadNext}>Try again</button>
+			<button class={btn} type="button" onclick={loadNext}>Try again</button>
 		</div>
 	{:else if exercise}
 		<ExerciseCard {exercise} />
 
 		{#if previous}
-			<details class="card previous">
-				<summary>Your first answer and its feedback</summary>
-				<p class="answer-text">{previous.answer}</p>
+			<details class={`${card} [&[open]_summary]:mb-3`}>
+				<summary class="cursor-pointer font-semibold">Your first answer and its feedback</summary>
+				<p class={answerText}>{previous.answer}</p>
 				<Feedback evaluation={previous.evaluation} />
 			</details>
 		{/if}
@@ -196,64 +212,68 @@
 					submit();
 				}}
 			>
-				<label for="answer" class="label">
+				<label for="answer" class="mb-[0.4rem] block font-semibold">
 					{#if previous}Now write it again in your own words{:else}Your answer{/if}
 				</label>
 				<textarea
 					id="answer"
+					class={textareaClass}
 					bind:this={textarea}
 					bind:value={answer}
 					onkeydown={onKeydown}
 					disabled={submitting}
 					rows="5"
-					placeholder={exercise.type === 'vocab'
-						? 'Explain the word in English, in your own words…'
-						: 'Write your answer in English…'}
+					placeholder="Write your answer in English…"
 					aria-describedby="counter"
 				></textarea>
-				<div class="row">
-					<span id="counter" class="small muted" class:over={chars > MAX_CHARS}>
+				<div class="mx-0 mb-4 mt-[0.35rem] flex justify-between gap-4">
+					<span
+						id="counter"
+						class={`${small} ${muted} ${chars > MAX_CHARS ? 'font-bold text-neutral-900 underline dark:text-neutral-100' : ''}`}
+					>
 						{chars} / {MAX_CHARS}
 					</span>
-					<span class="small muted hint">Ctrl or Cmd + Enter to submit</span>
+					<span class={`${small} ${muted} text-right`}>Ctrl or Cmd + Enter to submit</span>
 				</div>
 
 				{#if submitError}
-					<div class="alert" role="alert">
-						<strong>{submitError.retryable ? 'Not evaluated yet' : 'Could not submit'}</strong>
+					<div class={alert} role="alert">
+						<strong class={alertTitle}
+							>{submitError.retryable ? 'Not evaluated yet' : 'Could not submit'}</strong
+						>
 						<span>{submitError.message}</span>
 					</div>
 				{/if}
 
-				<div class="actions">
-					<button class="btn primary" type="submit" disabled={!canSubmit}>
+				<div class="flex flex-wrap gap-[0.6rem]">
+					<button class={btnPrimary} type="submit" disabled={!canSubmit}>
 						{submitError?.retryable ? 'Try again' : 'Get feedback'}
 					</button>
 					{#if !previous}
-						<button class="btn" type="button" onclick={loadNext} disabled={submitting}>
+						<button class={btn} type="button" onclick={loadNext} disabled={submitting}>
 							Skip this exercise
 						</button>
 					{/if}
 				</div>
-				<p class="small muted status" role="status" aria-live="polite">
+				<p class={`${small} ${muted} mt-[0.6rem] min-h-6`} role="status" aria-live="polite">
 					{#if submitting}Evaluating your answer. This usually takes a few seconds.{/if}
 				</p>
 			</form>
 		{:else}
-			<section class="card" aria-label="Your answer">
-				<h3>Your answer</h3>
-				<p class="answer-text">{submittedAnswer}</p>
+			<section class={card} aria-label="Your answer">
+				<h3 class="mb-2 text-base font-bold">Your answer</h3>
+				<p class={answerText}>{submittedAnswer}</p>
 			</section>
 
 			<Feedback evaluation={result.evaluation} />
 
-			<div class="actions after">
-				<button class="btn primary" type="button" onclick={startRewrite}>
+			<div class="mb-3 mt-4 flex flex-wrap gap-[0.6rem]">
+				<button class={btnPrimary} type="button" onclick={startRewrite}>
 					Rewrite it in my own words
 				</button>
-				<button class="btn" type="button" onclick={loadNext}>Next exercise</button>
+				<button class={btn} type="button" onclick={loadNext}>Next exercise</button>
 			</div>
-			<p class="small muted">
+			<p class={`${small} ${muted}`}>
 				Rewriting is optional but useful: producing the corrected form yourself is what builds
 				active English.
 			</p>
@@ -261,82 +281,3 @@
 	{/if}
 </div>
 
-<style>
-	.narrow {
-		max-width: var(--content);
-	}
-	.top {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.75rem;
-		margin-bottom: 1rem;
-	}
-	.top h1 {
-		margin: 0;
-	}
-	.modes {
-		display: inline-flex;
-		border: 1.5px solid var(--strong);
-		border-radius: 999px;
-		overflow: hidden;
-	}
-	.mode {
-		font: inherit;
-		font-weight: 650;
-		font-size: 0.9rem;
-		background: transparent;
-		color: var(--text);
-		border: 0;
-		padding: 0.4rem 0.95rem;
-		cursor: pointer;
-	}
-	.mode[aria-pressed='true'] {
-		background: var(--strong);
-		color: var(--on-strong);
-	}
-	.label {
-		display: block;
-		font-weight: 650;
-		margin-bottom: 0.4rem;
-	}
-	.row {
-		display: flex;
-		justify-content: space-between;
-		gap: 1rem;
-		margin: 0.35rem 0 1rem;
-	}
-	.over {
-		font-weight: 700;
-		color: var(--text);
-		text-decoration: underline;
-	}
-	.hint {
-		text-align: right;
-	}
-	.actions {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.6rem;
-	}
-	.after {
-		margin: 1rem 0 0.75rem;
-	}
-	.status {
-		min-height: 1.5rem;
-		margin-top: 0.6rem;
-	}
-	.answer-text {
-		white-space: pre-wrap;
-		overflow-wrap: anywhere;
-		font-size: 1.05rem;
-	}
-	.previous summary {
-		cursor: pointer;
-		font-weight: 650;
-	}
-	.previous[open] summary {
-		margin-bottom: 0.75rem;
-	}
-</style>

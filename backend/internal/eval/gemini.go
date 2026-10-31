@@ -23,6 +23,12 @@ type Client struct {
 // NewClient creates a Gemini client. baseURL is optional and defaults to the
 // public Google endpoint; it exists so tests can point at a local server.
 func NewClient(apiKey, model, baseURL string) *Client {
+	return NewClientWithTimeout(apiKey, model, baseURL, 30*time.Second)
+}
+
+// NewClientWithTimeout is NewClient with a custom HTTP timeout, for long
+// content-generation requests.
+func NewClientWithTimeout(apiKey, model, baseURL string, timeout time.Duration) *Client {
 	if baseURL == "" {
 		baseURL = defaultBaseURL
 	}
@@ -30,7 +36,7 @@ func NewClient(apiKey, model, baseURL string) *Client {
 		apiKey:  apiKey,
 		model:   model,
 		baseURL: baseURL,
-		http:    &http.Client{Timeout: 30 * time.Second},
+		http:    &http.Client{Timeout: timeout},
 	}
 }
 

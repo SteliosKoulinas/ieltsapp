@@ -16,6 +16,8 @@ var categories = map[string]bool{
 	"prepositions": true, "missing_subject": true, "word_choice": true,
 	"collocations": true, "sentence_structure": true, "linking": true, "clarity": true,
 	"vocabulary_meaning": true, "noun_number": true,
+	"listening_spelling": true, "listening_number": true, "listening_word": true,
+	"listening_omission": true, "listening_extra": true,
 }
 
 // Validate checks the evaluation against the contract. exerciseType matters for
@@ -42,7 +44,7 @@ func (e *Evaluation) Validate(exerciseType string) error {
 		if is.Explanation == "" {
 			return fmt.Errorf("issue %d: explanation is required", i)
 		}
-		if exerciseType == TypeWriting && e.Verdict == "correct" && is.Severity == "error" {
+		if (exerciseType == TypeWriting || exerciseType == TypeListening) && e.Verdict == "correct" && is.Severity == "error" {
 			return fmt.Errorf("verdict is correct but issue %d is an error", i)
 		}
 	}

@@ -271,15 +271,18 @@ func (s *Store) GetAttempt(ctx context.Context, id string) (*AttemptDetail, erro
 	var evaluation []byte
 	var failure sql.NullString
 	var ex Exercise
-	var criteria []byte
+	var criteria, accepted []byte
 	err := s.db.QueryRowContext(ctx, `
 SELECT a.id, a.parent_attempt_id, a.answer, a.status, a.evaluation, a.failure_code, a.created_at,
        e.id, e.slug, e.type, COALESCE(e.context, ''), e.prompt, COALESCE(e.target_word, ''),
-       COALESCE(e.intended_meaning, ''), COALESCE(e.expected_length, ''), e.criteria, e.topic, e.cefr
+       COALESCE(e.intended_meaning, ''), COALESCE(e.expected_length, ''), e.criteria, e.topic, e.cefr,
+       COALESCE(e.audio_text, ''), COALESCE(e.answer_text, ''), COALESCE(e.listening_mode, ''),
+       COALESCE(e.listening_kind, ''), e.accepted_forms
 FROM attempts a JOIN exercises e ON e.id = a.exercise_id
-WHERE a.id = $1`, id).Scan(&d.ID, &parent, &d.Answer, &d.Status, &evaluation, &failure, &d.CreatedAt,
+WHERE a.id = $1 AND e.type <> 'listening'`, id).Scan(&d.ID, &parent, &d.Answer, &d.Status, &evaluation, &failure, &d.CreatedAt,
 		&ex.ID, &ex.Slug, &ex.Type, &ex.Context, &ex.Prompt, &ex.TargetWord,
-		&ex.IntendedMeaning, &ex.ExpectedLength, &criteria, &ex.Topic, &ex.CEFR)
+		&ex.IntendedMeaning, &ex.ExpectedLength, &criteria, &ex.Topic, &ex.CEFR,
+		&ex.AudioText, &ex.AnswerText, &ex.ListeningMode, &ex.ListeningKind, &accepted)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -287,6 +290,9 @@ WHERE a.id = $1`, id).Scan(&d.ID, &parent, &d.Answer, &d.Status, &evaluation, &f
 		return nil, err
 	}
 	if err := json.Unmarshal(criteria, &ex.Criteria); err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(accepted, &ex.AcceptedForms); err != nil {
 		return nil, err
 	}
 	if parent.Valid {
@@ -297,6 +303,10 @@ WHERE a.id = $1`, id).Scan(&d.ID, &parent, &d.Answer, &d.Status, &evaluation, &f
 	}
 	d.FailureCode = failure.String
 	d.ReferenceMeaning = ex.IntendedMeaning
+	// The recording script is not part of the history payload. The evaluated
+	// transcript is already shown as the improved version, and a failed attempt
+	// must not reveal the answer.
+	ex.AudioText = ""
 	d.Exercise = ex
 	return &d, nil
 }
@@ -317,13 +327,16 @@ type AttemptSummary struct {
 // ListAttempts returns attempts newest first, plus the total count for paging.
 func (s *Store) ListAttempts(ctx context.Context, limit, offset int) ([]AttemptSummary, int, error) {
 	var total int
-	if err := s.db.QueryRowContext(ctx, `SELECT count(*) FROM attempts`).Scan(&total); err != nil {
+	if err := s.db.QueryRowContext(ctx, `
+SELECT count(*) FROM attempts a JOIN exercises e ON e.id = a.exercise_id
+WHERE e.type <> 'listening'`).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 	rows, err := s.db.QueryContext(ctx, `
 SELECT a.id, a.created_at, a.status, COALESCE(a.verdict, ''), a.parent_attempt_id IS NOT NULL,
        e.id, e.type, COALESCE(e.target_word, ''), COALESCE(e.context, e.prompt), left(a.answer, 200)
 FROM attempts a JOIN exercises e ON e.id = a.exercise_id
+WHERE e.type <> 'listening'
 ORDER BY a.created_at DESC, a.id
 LIMIT $1 OFFSET $2`, limit, offset)
 	if err != nil {

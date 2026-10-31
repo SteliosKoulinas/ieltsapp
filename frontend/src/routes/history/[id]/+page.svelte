@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import { api, ApiError, type AttemptDetail } from '#lib/api';
 	import { formatDateTime } from '#lib/format';
+	import { alert, alertTitle, answerText, btnPrimary, card, muted, narrow, small } from '#lib/ui';
 	import ExerciseCard from '#lib/components/ExerciseCard.svelte';
 	import Feedback from '#lib/components/Feedback.svelte';
 
@@ -50,16 +51,18 @@
 
 <svelte:head><title>Attempt · IELTS Practice</title></svelte:head>
 
-<div class="narrow">
+<div class={narrow}>
 	<p><a href="/history">← Back to history</a></p>
 
 	{#if loading}
-		<div class="card" aria-busy="true"><p class="muted">Loading…</p></div>
+		<div class={card} aria-busy="true"><p class={muted}>Loading…</p></div>
 	{:else if error}
-		<div class="alert" role="alert"><strong>Problem</strong><span>{error}</span></div>
+		<div class={alert} role="alert">
+			<strong class={alertTitle}>Problem</strong><span>{error}</span>
+		</div>
 	{:else if detail}
-		<h1>Attempt</h1>
-		<p class="muted small">
+		<h1 class="mb-2 text-[1.75rem] font-bold tracking-[-0.01em]">Attempt</h1>
+		<p class={`${small} ${muted}`}>
 			{formatDateTime(detail.created_at)}
 			{#if detail.parent_attempt_id}
 				· Rewrite of <a href="/history/{detail.parent_attempt_id}">an earlier answer</a>
@@ -68,46 +71,38 @@
 
 		<ExerciseCard exercise={detail.exercise} />
 
-		<section class="card" aria-label="Your answer">
-			<h3>Your answer</h3>
-			<p class="answer-text">{detail.answer}</p>
+		<section class={card} aria-label="Your answer">
+			<h3 class="mb-2 text-base font-bold">Your answer</h3>
+			<p class={`${answerText} m-0`}>{detail.answer}</p>
 		</section>
 
 		{#if detail.status === 'evaluated' && detail.evaluation}
 			<Feedback evaluation={detail.evaluation} />
 			{#if detail.reference_meaning}
-				<section class="card">
-					<h3>Reference meaning</h3>
+				<section class={card}>
+					<h3 class="mb-2 text-base font-bold">Reference meaning</h3>
 					<p>{detail.reference_meaning}</p>
-					<p class="small muted">Used by the evaluator as a guide. Other correct explanations are accepted.</p>
+					<p class={`${small} ${muted}`}>
+						Used by the evaluator as a guide. Other correct explanations are accepted.
+					</p>
 				</section>
 			{/if}
 		{:else}
-			<div class="alert">
-				<strong>Saved, but not evaluated</strong>
+			<div class={alert}>
+				<strong class={alertTitle}>Saved, but not evaluated</strong>
 				<span>
 					Your answer is stored safely. The AI could not evaluate it at the time. You can ask for the
 					evaluation again.
 				</span>
 			</div>
 			{#if retryError}
-				<div class="alert" role="alert"><strong>Still not evaluated</strong><span>{retryError}</span></div>
+				<div class={alert} role="alert">
+					<strong class={alertTitle}>Still not evaluated</strong><span>{retryError}</span>
+				</div>
 			{/if}
-			<button class="btn primary" type="button" disabled={retrying} onclick={retryEvaluation}>
+			<button class={btnPrimary} type="button" disabled={retrying} onclick={retryEvaluation}>
 				{retrying ? 'Evaluating…' : 'Evaluate this answer now'}
 			</button>
 		{/if}
 	{/if}
 </div>
-
-<style>
-	.narrow {
-		max-width: var(--content);
-	}
-	.answer-text {
-		white-space: pre-wrap;
-		overflow-wrap: anywhere;
-		font-size: 1.05rem;
-		margin: 0;
-	}
-</style>

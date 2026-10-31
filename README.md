@@ -1,176 +1,230 @@
 # IELTS Practice
 
-Προσωπικό εργαλείο καθημερινής εξάσκησης για IELTS Academic. Δύο τύποι ασκήσεων (Vocabulary in Context και Short Writing). Κάθε απάντηση αξιολογείται από το Gemini, αποθηκεύεται σε PostgreSQL και τροφοδοτεί τα στατιστικά σου.
+A personal daily practice tool for IELTS Academic. There are two exercise types: Vocabulary in Context and Short Writing. Every answer is evaluated by Gemini, stored in PostgreSQL, and used to build your statistics.
 
+```text
+Browser -> host nginx (TLS) -> web (static SvelteKit build)
+                            -> /api -> Go API -> PostgreSQL
+                                          |
+                                          +-> Gemini API (server side only)
 ```
-Browser ──> nginx (frontend, port 8080) ──> Go API ──> PostgreSQL
-                  static SvelteKit build      │
-                  /api/* proxied              └──> Gemini API (μόνο από τον server)
-```
 
-## Εκκίνηση
+## Getting started
 
-Χρειάζεσαι Docker με Compose v2 και ένα API key από https://aistudio.google.com.
+You need Docker with Compose v2 and an API key from https://aistudio.google.com.
 
 ```bash
-bash scripts/init-env.sh      # ρωτά το key (κρυφό), φτιάχνει .env και τυχαίο κωδικό για τη βάση
+bash scripts/init-env.sh      # asks for the key (hidden), creates .env and a random database password
 docker compose up --build
 ```
 
-Άνοιξε **http://localhost:8080**. Την πρώτη φορά το build παίρνει λίγα λεπτά. Το API τρέχει μόνο του τα migrations και φορτώνει τις ασκήσεις.
+Open `http://localhost:<WEB_PORT>` once the stack is running. The default value is in `.env.example`. The first build takes a few minutes. The API runs its migrations and loads the exercise bank on startup.
 
-Αν προτιμάς να φτιάξεις το `.env` μόνος σου: `cp .env.example .env` και συμπλήρωσε `GEMINI_API_KEY`, `GEMINI_MODEL` και έναν κωδικό βάσης **μόνο από γράμματα και αριθμούς**. Το `.env.example` είναι δημόσιο και έχει μόνο placeholders. Το `.env` είναι στο `.gitignore`.
+If you prefer to write `.env` yourself: `cp .env.example .env`, then fill in `GEMINI_API_KEY`, `GEMINI_MODEL`, and a database password that uses **letters and numbers only**. `.env.example` is public and contains placeholders. `.env` is ignored by Git.
 
-Σταμάτημα: `docker compose down`. Τα δεδομένα μένουν στο volume `pgdata`.
-**Προσοχή:** `docker compose down -v` σβήνει και τη βάση.
+Stop the stack with `docker compose down`. Your data stays in the `pgdata` volume.
+**Warning:** `docker compose down -v` also deletes the database.
 
-## Τι να δοκιμάσεις
+## What to try
 
-1. **Practice**: διάλεξε Mixed, Vocabulary ή Writing, γράψε απάντηση, πάτα "Get feedback". `Ctrl` ή `Cmd` + `Enter` υποβάλλει.
-2. **Rewrite**: μετά το feedback πάτα "Rewrite it in my own words". Η πρώτη απάντηση και το feedback μένουν ανοιχτά για αναφορά.
-3. **Όταν το AI αποτυγχάνει**: βάλε προσωρινά λάθος `GEMINI_API_KEY` στο `.env`, τρέξε `docker compose up -d api` και υπέβαλε μια απάντηση. Θα δεις "Not evaluated yet", το κείμενό σου μένει στο πλαίσιο, και η απάντηση αποθηκεύεται. Διόρθωσε το key, ξανατρέξε την ίδια εντολή και πάτα "Try again", ή άνοιξε την απάντηση από το **History** και πάτα "Evaluate this answer now". Δεν δημιουργείται διπλή απάντηση.
-4. **History**: όλες οι απαντήσεις, με πλήρες feedback και (για vocab) το reference meaning.
-5. **Statistics**: δες παρακάτω.
+1. **Practice**: choose Mixed, Vocabulary or Writing, write an answer, and press "Get feedback". `Ctrl` or `Cmd` + `Enter` submits.
+2. **Rewrite**: after feedback, press "Rewrite it in my own words". Your first answer and its feedback stay visible for reference.
+3. **When the AI fails**: temporarily put a wrong `GEMINI_API_KEY` in `.env`, run `docker compose up -d api`, and submit an answer. You will see "Not evaluated yet", your text stays in the box, and the answer is saved. Fix the key, run the same command again, and press "Try again"; or open the answer from **History** and press "Evaluate this answer now". No duplicate attempt is created.
+4. **History**: every answer, with the full feedback and, for vocabulary, the reference meaning.
+5. **Statistics**: see below.
 
-## Στατιστικά: τι σημαίνει κάθε νούμερο
+## Statistics: what each number means
 
-- **Ποιοτικά μεγέθη (verdicts, λάθη) μετράνε μόνο τις πρώτες απαντήσεις** κάθε άσκησης. Ένα rewrite γίνεται αφού είδες το feedback, οπότε αν μετρούσε θα έδειχνε καλύτερο επίπεδο από το πραγματικό.
-- **Λάθη ανά 10 απαντήσεις**: μετράνε μόνο issues με severity "Mistake" (όχι "Sounds unnatural" ή "Optional improvement"), ώστε οι αριθμοί να μη ζυγίζουν διαφορετικά ανάλογα με το πόσο έγραψες. Το "Recently" είναι οι τελευταίες 10 πρώτες απαντήσεις.
-- **Σύγκριση πρόσφατα/συνολικά** εμφανίζεται από 20 απαντήσεις και πάνω. Με λιγότερες, η σελίδα το λέει ρητά και δεν βγάζει συμπέρασμα.
-- **Σκορ 0 έως 3** (not correct, partly, mostly, correct): μέτρο εξάσκησης και **όχι IELTS band score**.
-- **Streak**: συνεχόμενες μέρες με τουλάχιστον μία αξιολογημένη απάντηση, στη δική σου ζώνη ώρας. Δεν σπάει όσο δεν έχει περάσει ολόκληρη μέρα χωρίς εξάσκηση.
-- **Αποτυχημένες αξιολογήσεις** δεν μετράνε πουθενά, αλλά αναφέρονται ξεχωριστά.
-- **Vocabulary schedule**: κάθε λέξη μπαίνει σε ένα από 5 boxes. Σωστή ή σχεδόν σωστή απάντηση (`correct`, `mostly_correct`) ανεβάζει box και η λέξη δεν ξαναεμφανίζεται για τουλάχιστον 1 μέρα: 1 μέρα, 3 μέρες, 8 μέρες, 21 μέρες. Έτσι μια λέξη που την ξέρεις δεν ξαναβγαίνει στο ίδιο session. Λάθος ή μερική απάντηση (`incorrect`, `partially_correct`) γυρίζει τη λέξη πίσω, ώστε να ξαναέρθει σύντομα: στο box 1 σε 10 λεπτά. "Due now" σημαίνει ότι η λέξη περιμένει επανάληψη τώρα. "New today" μετράει πόσες νέες λέξεις πρωτοείδες σήμερα, με ανώτατο όριο `NEW_VOCAB_PER_DAY`.
-- **Σειρά προτεραιότητας**: οι λέξεις έχουν tier 1 έως 4. Το tier 1 είναι το πιο χρήσιμο λεξιλόγιο για B2/B2+ και IELTS Academic, και μπαίνει πρώτο. Οι επαναλήψεις δεν επηρεάζονται από το tier: ό,τι είναι due έρχεται πριν από κάθε νέα λέξη.
+- **Quality figures (verdicts, mistakes) count first attempts only.** A rewrite happens after you have seen the feedback, so counting it would make your level look better than it is.
+- **Mistakes per 10 answers** counts only issues with severity "Mistake", not "Sounds unnatural" or "Optional improvement". This keeps the numbers comparable no matter how much you wrote. "Recently" means your last 10 first attempts.
+- **Recent versus overall comparison** appears after 20 answers. With fewer, the page says so and draws no conclusion.
+- **Score 0 to 3** (not correct, partly, mostly, correct) is a practice measure, **not an IELTS band score**.
+- **Streak**: consecutive days with at least one evaluated answer, in your own time zone. It does not break while a full day without practice has not passed yet.
+- **Failed evaluations** are not counted anywhere, but are reported separately.
+- **Vocabulary schedule**: each word sits in one of 5 boxes. A correct or mostly correct answer moves it up one box, and the word does not return for at least 1 day: 1 day, 3 days, 8 days, 21 days. A word you know therefore does not reappear in the same session. A wrong or partial answer moves the word back so it returns soon: box 1 returns in 10 minutes. "Due now" means the word is waiting for review now. "New today" counts the new words you saw for the first time today. There is no daily limit by default.
+- **Priority order**: words have tiers 1 to 4. Tier 1 is the most useful vocabulary for B2/B2+ and IELTS Academic, and is introduced first. Reviews are not affected by tier: anything due comes before any new word.
 
-## Πύλες και ασφάλεια
+## Exposure and security
 
-| Υπηρεσία | Διεύθυνση | Σχόλιο |
+| Service | Exposure | Notes |
 |---|---|---|
-| Site (nginx) | http://localhost:8080 | μόνο 127.0.0.1 |
-| API | http://localhost:8081 | μόνο 127.0.0.1, για curl και για `npm run dev` |
-| PostgreSQL | καμία | μόνο το API φτάνει στη βάση |
+| Site (nginx) | loopback only | host nginx is the only public entry point |
+| API | loopback only | used by the web container and by curl |
+| PostgreSQL | not exposed | only the API reaches the database |
 
-- Τίποτα δεν είναι προσβάσιμο από άλλα μηχανήματα. Δεν υπάρχει login, οπότε **μην το ανοίξεις δημόσια** χωρίς πρώτα authentication (βλέπε "Επόμενα βήματα").
-- Το Gemini key υπάρχει μόνο στο container του API, δεν μπαίνει στο frontend και δεν γράφεται σε logs.
-- Ο server ξεκινά το πολύ 10 αξιολογήσεις το λεπτό (`EVAL_RATE_PER_MINUTE`), για να μην καίει ο browser την ημερήσια ποσόστωση σε περίπτωση βρόχου.
-- Νέες λέξεις μπαίνουν το πολύ 8 την ημέρα (`NEW_VOCAB_PER_DAY`), στη δική σου ζώνη ώρας. Οι επαναλήψεις που είναι due δεν περιορίζονται.
-- Τα logs δεν περιέχουν ποτέ το κείμενο των απαντήσεών σου.
+- Compose publishes the site and API on the loopback interface only. On a server, put a host nginx with TLS in front of the web service. Do not publish the container ports directly.
+- There is no login. HTTPS encrypts the connection but is **not authentication**. Keep the site on a private network, or add authentication (basic auth, VPN or Tailscale) before exposing it to the internet.
+- The Gemini key exists only in the API container. It is never sent to the browser and never written to logs.
+- The server starts at most 10 evaluations per minute (`EVAL_RATE_PER_MINUTE`), so a browser loop cannot burn the daily quota.
+- New words are unlimited by default (`NEW_VOCAB_PER_DAY=0`). Set a positive value to cap new words per day in your own time zone. Due reviews are never limited.
+- Logs never contain the text of your answers.
 
-## Τι αποθηκεύεται
+## What is stored
 
-Στην τοπική βάση σου: οι ασκήσεις (κοινό περιεχόμενο), οι απαντήσεις σου, το feedback που εμφανίστηκε, **και η ακατέργαστη απάντηση του μοντέλου** (για να ελέγχεις κακές διορθώσεις), το όνομα του μοντέλου και ένα hash του prompt. Το κείμενο της άσκησης και της απάντησής σου στέλνεται στο Google για αξιολόγηση. Στο free tier η Google μπορεί να χρησιμοποιεί τις εισόδους για βελτίωση των προϊόντων της, οπότε μη γράφεις προσωπικά δεδομένα στις απαντήσεις.
+In your local database: the exercises (shared content), your answers, the feedback shown, **the model's raw response** (so you can inspect bad corrections), the model name, and a hash of the prompt. The exercise text and your answer are sent to Google for evaluation. On the free tier Google may use inputs to improve its products, so do not write personal data in your answers.
 
-Πίνακες: `exercises` (κοινό περιεχόμενο, με `tier` προτεραιότητας), `attempts` (αμετάβλητο ιστορικό, id από τον browser ως idempotency key), `attempt_issues` (μία γραμμή ανά issue, για τα στατιστικά), `review_state` (box και επόμενη ημερομηνία επανάληψης ανά λέξη), `schema_migrations`.
+Tables: `exercises` (shared content, with a priority `tier`), `attempts` (immutable history, browser-generated id used as an idempotency key), `attempt_issues` (one row per issue, for statistics), `review_state` (box and next review date per word), `schema_migrations`.
 
-### Προσθήκη νέου υλικού
+## How content works
 
-Το built-in υλικό είναι στο `backend/internal/store/seed/exercises.json`. Για νέα παρτίδα χωρίς rebuild, βάλε ένα JSON με το ίδιο σχήμα στο `content/generated.json` και τρέξε `docker compose restart api`. Το API το διαβάζει μετά το built-in seed, ελέγχει τα πεδία και δεν ξαναγράφει slugs που υπάρχουν ήδη. Αν το αρχείο λείπει, το API ξεκινά κανονικά. Οδηγίες και παράδειγμα: `content/README.md`.
+The content bank is the material the app draws exercises from. It feeds vocabulary and writing.
 
-### Backup και επαναφορά
-Το volume **δεν είναι backup**. Αντίγραφο ασφαλείας:
+There are two sources:
+
+1. **Built-in bank**: `backend/internal/store/seed/exercises.json`. It is compiled into the API image and loaded on every API start. Loading is idempotent: an existing slug is never rewritten, so you can correct tier and source metadata without touching an exercise that already has attempts.
+2. **Extra batches**: `content/generated.json` and every `.json` file in `content/batches/`. The `content` folder is mounted into the API container. The API reads these at startup, after the built-in bank, validates them, and inserts only new slugs. If a file or folder is missing, the API starts normally and logs that it skipped it.
+
+The current built-in bank has **84 vocabulary and writing exercises (70 vocabulary, 14 writing)**. There is no daily cap by default, so you can work through as much as you want in a day.
+
+### Adding material
+
+There is **no automatic content generation and no scheduled import**. New material appears only when you add it and restart the API.
+
+To generate new material with Gemini, run the manual generator:
+
+```bash
+docker compose run --rm --user root api generate -type vocab -count 10
+docker compose run --rm --user root api generate -type writing -count 5
+```
+
+The generator validates the output, drops duplicates, writes a batch file under `content/batches/`, and inserts the accepted items into the database. It runs only when you start it, never on a schedule. Review the output before trusting it: it is AI-written and **not official IELTS material**.
+
+To add a batch by hand:
+
+1. Create a JSON file with the same shape as the built-in bank.
+2. Save it as `content/batches/<name>.json`, or replace `content/generated.json`.
+3. Run `docker compose restart api`.
+
+See `content/README.md` for the format, examples, and the validation rules.
+
+### How exercises are selected
+
+- **Vocabulary**: due reviews first, in random order among words that are due. If no review is due, a new word is chosen by tier, with random tie-breaking. If you set `NEW_VOCAB_PER_DAY` to a positive number, new words stop after that cap. A word answered correctly or mostly correctly moves up a box and is at least 24 hours away, so it does not return in the same session.
+- **Writing**: prompts you have never seen first, then the ones seen longest ago. Writing is not part of the spaced repetition schedule, so a prompt can eventually return after you have seen the whole bank.
+- **Mixed** prefers vocabulary and falls back to writing when no word is available. The previous exercise is avoided when there is another option.
+
+## Backup and restore
+
+The volume is **not** a backup. To take a copy:
 
 ```bash
 docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > backup.sql
 ```
 
-Επαναφορά σε άδεια βάση (μετά από `docker compose down -v` και `docker compose up -d db`):
+To restore into an empty database (after `docker compose down -v` and `docker compose up -d db`):
 
 ```bash
 docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" "$POSTGRES_DB"' < backup.sql
 ```
 
-## Όρια του free tier
+Keep copies outside the server, for example with `scp` to your laptop.
 
-Τα όρια του Gemini είναι ανά μοντέλο και αλλάζουν. Στο project σου, τα Flash μοντέλα είχαν 20 κλήσεις την ημέρα και τα Flash Lite 500. Γι' αυτό το προεπιλεγμένο μοντέλο είναι `gemini-3.5-flash-lite`. Αν ένα όριο χτυπήσει, η εφαρμογή δείχνει καθαρό μήνυμα και κρατά την απάντησή σου. Δες τα τρέχοντα όρια στη σελίδα rate limits του AI Studio.
+## Free tier limits
 
-Το feedback ενός μικρότερου μοντέλου μπορεί να έχει ανακρίβειες. Αν μια διόρθωση σου φαίνεται περίεργη, μην την εμπιστευτείς τυφλά.
+Gemini limits are per model and change over time. In this project the Flash models had 20 requests per day and the Flash Lite models had 500. That is why the default model is `gemini-3.5-flash-lite`. If a limit is reached, the app shows a clear message and keeps your answer. Check the current limits on the AI Studio rate limits page.
 
-## Δοκιμές και ανάπτυξη
+Feedback from a smaller model can be inaccurate. If a correction looks strange, do not trust it blindly.
 
-**Backend tests.** Οι unit tests δεν χρειάζονται τίποτα. Τα integration tests χρειάζονται μια βάση που μπορούν να χρησιμοποιήσουν (κάθε test φτιάχνει δικό του schema και το σβήνει):
+## Tests and development
 
-```bash
-docker run --rm -d --name pgtest -e POSTGRES_PASSWORD=test -p 55432:5432 postgres:16-alpine
-cd backend
-TEST_DATABASE_URL='postgres://postgres:test@127.0.0.1:55432/postgres?sslmode=disable' go test ./...
-docker rm -f pgtest
-```
-
-Χωρίς `TEST_DATABASE_URL` τα DB tests παραλείπονται (skip) και τα υπόλοιπα τρέχουν.
-
-**Ποιότητα του AI feedback.** Δέκα δοκιμαστικές απαντήσεις με ζωντανές κλήσεις (χρειάζεται Go και το `.env`):
+**Backend tests.** Unit tests need nothing. Integration tests need a database they can use; each test creates its own schema and drops it:
 
 ```bash
+# Start a disposable PostgreSQL, then point TEST_DATABASE_URL at it.
+export TEST_DATABASE_URL='postgres://USER:PASSWORD@HOST:PORT/DATABASE?sslmode=disable'
 cd backend
-go run ./cmd/evalcheck -v            # όλα
-go run ./cmd/evalcheck -only w       # μόνο τα writing
+go test ./...
 ```
 
-Τρέξ' το ξανά κάθε φορά που αλλάζεις prompt ή μοντέλο. Τυπώνει και χρόνους ανά κλήση. Πρόσθεσε δικές σου απαντήσεις στο `backend/testdata/golden.json`.
+Without `TEST_DATABASE_URL`, database-backed tests are skipped and the rest still run.
 
-**Frontend με hot reload.** Με το stack ήδη σηκωμένο:
+**AI feedback quality.** Ten sample answers with live calls (needs Go and `.env`):
+
+```bash
+cd backend
+go run ./cmd/evalcheck -v            # all
+go run ./cmd/evalcheck -only w       # writing only
+```
+
+Run it again whenever you change the prompt or the model. It also prints the time per call. Add your own answers to `backend/testdata/golden.json`.
+
+**Frontend with hot reload.** With the stack already running:
 
 ```bash
 cd frontend
 npm install
-npm run dev          # http://localhost:5173, το /api πάει στο 127.0.0.1:8081
-npm run check        # έλεγχος τύπων
+npm run dev          # Vite dev server, proxies /api to the API
+npm run check        # type and Svelte checks
+npm run build        # production build
 ```
+
+The frontend uses Tailwind CSS v4 through `@tailwindcss/vite`. Styling lives in utility classes in the Svelte files; `src/app.css` only imports the font and Tailwind, defines the font theme, and sets the focus ring.
 
 ## API
 
-| Μέθοδος | Διαδρομή | Σκοπός |
+| Method | Path | Purpose |
 |---|---|---|
-| GET | `/api/health` | υγεία, ελέγχει και τη βάση |
-| GET | `/api/exercises/next?type=vocab\|writing\|any&exclude=ID&tz=Europe/Athens` | επόμενη άσκηση |
-| POST | `/api/attempts` | υποβολή και αξιολόγηση (idempotent με το `id`) |
-| GET | `/api/attempts?limit=&offset=` | ιστορικό |
-| GET | `/api/attempts/{id}` | μία απάντηση με πλήρες feedback |
-| GET | `/api/stats?tz=Europe/Athens` | στατιστικά |
+| GET | `/api/health` | health, checks the database too |
+| GET | `/api/exercises/next?type=vocab\|writing\|any&exclude=ID&tz=YOUR_TIME_ZONE` | next vocabulary or writing exercise |
+| POST | `/api/attempts` | submit and evaluate (idempotent by `id`) |
+| GET | `/api/attempts?limit=&offset=` | history |
+| GET | `/api/attempts/{id}` | one answer with full feedback |
+| GET | `/api/stats?tz=YOUR_TIME_ZONE` | statistics |
 
-**Επιλογή επόμενης άσκησης**: για vocabulary, πρώτα η παλαιότερη λέξη που είναι due, μετά μια νέα λέξη αν δεν έχει καλυφθεί το ημερήσιο όριο, με σειρά tier και τυχαία επιλογή σε ισοπαλία. Για writing, πρώτα όσες δεν έχεις δει ποτέ, μετά όποια έχεις δει πιο παλιά. Το "Mixed" προτιμά vocabulary και πέφτει σε writing όταν δεν υπάρχει διαθέσιμη λέξη. Η προηγούμενη άσκηση αποφεύγεται όταν υπάρχει άλλη επιλογή.
+**Spaced repetition** applies to vocabulary. Only the first answer to a word changes its box. Rewrites are extra practice and do not affect the schedule or the quality statistics.
 
-**Spaced repetition**: μόνο οι λέξεις μπαίνουν σε πρόγραμμα επανάληψης. Μόνο η πρώτη απάντηση σε κάθε λέξη αλλάζει το box. Τα rewrites είναι πρόσθετη εξάσκηση και δεν επηρεάζουν το πρόγραμμα ούτε τα ποιοτικά στατιστικά.
+**Submission flow**: the answer is saved before the AI is called, so it is never lost. If the provider fails, the same submission is retried with the same `id`, without duplicates or double evaluation. Feedback is validated (known fields, known categories, quotes that actually appear in your answer) before it is stored or shown.
 
-**Ροή υποβολής**: η απάντηση αποθηκεύεται πριν κληθεί το AI, ώστε να μη χάνεται ποτέ. Αν αποτύχει ο provider, η ίδια υποβολή ξαναδοκιμάζεται με το ίδιο `id` χωρίς διπλότυπα ή διπλή αξιολόγηση. Το feedback περνά επικύρωση (σωστά πεδία, γνωστές κατηγορίες, παραθέματα που υπάρχουν πράγματι στην απάντησή σου) πριν αποθηκευτεί ή εμφανιστεί.
+## Structure
 
-## Δομή
-
-```
+```text
 docker-compose.yml        db + api + web
-.env.example              δημόσιο template (placeholders)
-scripts/init-env.sh       δημιουργεί το .env
-scripts/smoke.sh          γρήγορος έλεγχος (ξοδεύει 1 κλήση AI)
+.env.example              public template (placeholders)
+scripts/init-env.sh       creates .env
+scripts/smoke.sh          quick check (spends 1 AI call)
 backend/                  Go API
   cmd/api                 server
-  cmd/evalcheck           έλεγχος ποιότητας AI με ζωντανές κλήσεις
-  internal/eval           prompts, Gemini client, επικύρωση, retry
-  internal/store          PostgreSQL: migrations, seed, επιλογή, attempts, στατιστικά
+  cmd/evalcheck           live AI quality check
+  internal/eval           prompts, Gemini client, validation, retry
+  internal/store          PostgreSQL: migrations, seed, selection, attempts, statistics
   internal/httpapi        endpoints, rate limiter
-  testdata/golden.json    δοκιμαστικές απαντήσεις
-frontend/                 SvelteKit (static build) + nginx.conf
-content/                  extra JSON batches, mounted read-only into the api
+  testdata/golden.json    sample answers
+frontend/                 SvelteKit (static build) + Tailwind CSS + nginx.conf
+content/                  JSON batches for manual and generated material
 ```
 
-## Τι είναι και τι δεν είναι έτοιμο
+## Deployment notes
 
-**Ελέγχθηκε εδώ:** το Go API με πραγματικό PostgreSQL 16 (42 Go tests, με database-backed integration tests για migrations, seed, spaced repetition, attempts και στατιστικά), ολόκληρη η στοίβα σε πραγματικό headless Chromium με 27 ελέγχους (πρακτική, αποτυχία και retry, ιστορικό, στατιστικά, κινητό, γραμματοσειρά), το `nginx.conf` με πραγματικό nginx 1.24, το `npm ci` και το build του frontend. Το AI στις δοκιμές αυτές ήταν **ψεύτικος τοπικός server**, όχι το πραγματικό Gemini. Οι νέες οθόνες του spaced repetition δεν έχουν ελεγχθεί ακόμα σε browser.
+The stack has been run on a Linux VM with Docker Compose v2 and a host nginx with TLS. The host nginx should proxy to the web service over loopback; the database and the API stay private.
 
-**Δεν ελέγχθηκε εδώ:** η εκτέλεση των `docker build` και `docker compose` (δεν υπήρχε Docker). Τα Dockerfiles και το compose ακολουθούν τα βήματα που δοκιμάστηκαν χωριστά, αλλά αν κάτι αποτύχει στο πρώτο `docker compose up --build`, στείλε μου το μήνυμα. Επίσης δεν δοκιμάστηκε το πραγματικό Gemini με αυτό τον κώδικα, οπότε το πρώτο feedback θα δείξει αν οι αξιολογήσεις είναι καλές.
+Update routine:
 
-**Οι 84 ασκήσεις** (70 vocabulary, 14 writing) γράφτηκαν από AI και δεν έχουν ελεγχθεί από δάσκαλο. Είναι πρωτότυπες ασκήσεις εξάσκησης, **όχι επίσημο υλικό IELTS**. Το επίπεδο CEFR είναι προσεγγιστικό. Οι 50 νέες λέξεις tier 1 επιλέχθηκαν ως βασικό ακαδημαϊκό και θεματικό λεξιλόγιο B2/B2+, με βάση την έρευνα για μέγεθος λεξιλογίου και κάλυψη κειμένου (περίπου 3.500 έως 4.000 word families για B2, 4.000 έως 5.000 για άνετη κατανόηση IELTS Academic reading).
+```bash
+cd /path/to/ielts-practice
+git pull
+docker compose up -d --build
+```
 
-**Δεν υπάρχουν ακόμα:** λογαριασμοί και guest mode, προσαρμογή δυσκολίας, ανίχνευση αδυναμιών ανά concept για επιλογή ασκήσεων, εισαγωγή Anki, αυτόματο pipeline περιεχομένου, TLS και CSP για δημόσιο deploy.
+`git pull` does not touch `.env`. After changing only files under `content/`, run `docker compose restart api`.
 
-## Επόμενα βήματα (Φάση Β)
+## What is and is not ready
 
-Η προτεινόμενη σειρά: χρήση των αδυναμιών που ήδη καταγράφονται για την επιλογή ασκήσεων, περισσότερο υλικό ανά tier, και μετά λογαριασμοί και deploy σε Linux VM με nginx. Το `frontend/nginx.conf` δουλεύει και εκεί: άλλαξε το `api:8080` στη διεύθυνση του Go service και πρόσθεσε TLS.
+**Tested here:** the Go API against a real PostgreSQL 16, including database-backed integration tests for migrations, seeding, spaced repetition, attempts, statistics and the content generator. `go vet` and `npm run check` pass. The frontend was checked in Chromium against the real local backend and again on the deployed site: practice, history and statistics. The Docker images build and the Compose stack runs locally and on the Linux VM.
 
-## Προβλήματα
+**Not tested here:** real Gemini feedback was not quality-checked with this exact build in the final check, and the automated tests use a fake local AI server. If something fails on `docker compose up --build`, send the error message.
 
-- **Το `api` σταματά με `GEMINI_API_KEY is not set`**: το key είναι ακόμα placeholder. Διόρθωσε το `.env` και τρέξε `docker compose up -d api`.
-- **`provider rejected request: status 404` στα logs**: το `GEMINI_MODEL` δεν υπάρχει. Δες τα ονόματα στο AI Studio.
-- **Μήνυμα για rate limit**: περίμενε ένα λεπτό. Αν λέει ότι εξαντλήθηκε η ημερήσια ποσόστωση, άλλαξε μοντέλο ή περίμενε.
+**The built-in bank** has 84 vocabulary and writing exercises (70 vocabulary, 14 writing). All of it was written by AI and has not been reviewed by a teacher. It is original practice material, **not official IELTS material**. CEFR levels are approximate. The tier-1 vocabulary was chosen as core academic and topic vocabulary at B2/B2+, based on research on vocabulary size and text coverage (roughly 3,500 to 4,000 word families for B2, 4,000 to 5,000 for comfortable IELTS Academic reading).
+
+**Not there yet:** accounts and guest mode, difficulty adaptation, weakness detection per concept for exercise selection, Anki import, an automatic content pipeline, and authentication for public deployment.
+
+## Next steps (Phase B)
+
+Suggested order: use the weaknesses already recorded to choose exercises, add more material per tier, then accounts and a proper content pipeline.
+
+## Troubleshooting
+
+- **The `api` stops with `GEMINI_API_KEY is not set`**: the key is still a placeholder. Fix `.env` and run `docker compose up -d api`.
+- **`provider rejected request: status 404` in the logs**: `GEMINI_MODEL` does not exist. Check the model names in AI Studio.
+- **Rate limit message**: wait a minute. If it says the daily quota is exhausted, change the model or wait.
 - **Logs**: `docker compose logs -f api`.
-- **Η πόρτα 8080 είναι πιασμένη**: άλλαξε το `WEB_PORT` στο `.env`.
+- **The web port is already in use**: change `WEB_PORT` in `.env`.

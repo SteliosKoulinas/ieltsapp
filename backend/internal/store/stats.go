@@ -107,11 +107,12 @@ func (s *Store) Stats(ctx context.Context, loc *time.Location, now time.Time, ne
 	st := &Stats{ByType: []TypeStats{}, TopCategories: []CategoryStat{}, Recent: []RecentAttempt{}}
 
 	if err := s.db.QueryRowContext(ctx, `
-SELECT count(*) FILTER (WHERE parent_attempt_id IS NULL),
-       count(*) FILTER (WHERE parent_attempt_id IS NOT NULL),
-       count(*) FILTER (WHERE status = 'evaluated'),
-       count(*) FILTER (WHERE status = 'failed')
-FROM attempts`).Scan(&st.Totals.FirstAttempts, &st.Totals.Rewrites, &st.Totals.Evaluated, &st.Totals.Failed); err != nil {
+SELECT count(*) FILTER (WHERE a.parent_attempt_id IS NULL),
+       count(*) FILTER (WHERE a.parent_attempt_id IS NOT NULL),
+       count(*) FILTER (WHERE a.status = 'evaluated'),
+       count(*) FILTER (WHERE a.status = 'failed')
+FROM attempts a JOIN exercises e ON e.id = a.exercise_id
+WHERE e.type <> 'listening'`).Scan(&st.Totals.FirstAttempts, &st.Totals.Rewrites, &st.Totals.Evaluated, &st.Totals.Failed); err != nil {
 		return nil, err
 	}
 
@@ -119,7 +120,7 @@ FROM attempts`).Scan(&st.Totals.FirstAttempts, &st.Totals.Rewrites, &st.Totals.E
 	rows, err := s.db.QueryContext(ctx, `
 SELECT e.type, a.verdict, count(*)
 FROM attempts a JOIN exercises e ON e.id = a.exercise_id
-WHERE a.status = 'evaluated' AND a.parent_attempt_id IS NULL
+WHERE a.status = 'evaluated' AND a.parent_attempt_id IS NULL AND e.type <> 'listening'
 GROUP BY e.type, a.verdict`)
 	if err != nil {
 		return nil, err
@@ -215,8 +216,8 @@ FROM review_state`, now, dayStart).Scan(&srs.Tracked, &srs.DueNow, &srs.NewToday
 // implementation) and derives the practice streak.
 func (s *Store) fillDaily(ctx context.Context, st *Stats, loc *time.Location, now time.Time) error {
 	rows, err := s.db.QueryContext(ctx, `
-SELECT created_at FROM attempts
-WHERE status = 'evaluated' AND created_at >= $1`, now.AddDate(0, 0, -streakLookback-1))
+SELECT a.created_at FROM attempts a JOIN exercises e ON e.id = a.exercise_id
+WHERE a.status = 'evaluated' AND a.created_at >= $1 AND e.type <> 'listening'`, now.AddDate(0, 0, -streakLookback-1))
 	if err != nil {
 		return err
 	}
@@ -259,8 +260,9 @@ func (s *Store) fillCategories(ctx context.Context, st *Stats) error {
 	st.CategoryWindow = min(categoryWindowSz, st.FirstAttemptsEvaluated)
 	rows, err := s.db.QueryContext(ctx, `
 WITH firsts AS (
-    SELECT id, row_number() OVER (ORDER BY created_at DESC, id) AS rn
-    FROM attempts WHERE status = 'evaluated' AND parent_attempt_id IS NULL
+    SELECT a.id, row_number() OVER (ORDER BY a.created_at DESC, a.id) AS rn
+    FROM attempts a JOIN exercises e ON e.id = a.exercise_id
+    WHERE a.status = 'evaluated' AND a.parent_attempt_id IS NULL AND e.type <> 'listening'
 )
 SELECT i.category, count(*), count(*) FILTER (WHERE f.rn <= $1)
 FROM attempt_issues i JOIN firsts f ON f.id = i.attempt_id
@@ -291,7 +293,7 @@ func (s *Store) fillRecent(ctx context.Context, st *Stats) error {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT a.created_at, e.type, a.verdict
 FROM attempts a JOIN exercises e ON e.id = a.exercise_id
-WHERE a.status = 'evaluated' AND a.parent_attempt_id IS NULL
+WHERE a.status = 'evaluated' AND a.parent_attempt_id IS NULL AND e.type <> 'listening'
 ORDER BY a.created_at DESC, a.id
 LIMIT $1`, recentListSize)
 	if err != nil {
@@ -323,8 +325,10 @@ LIMIT $1`, recentListSize)
 func (s *Store) fillRewrites(ctx context.Context, st *Stats) error {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT p.verdict, c.verdict
-FROM attempts c JOIN attempts p ON p.id = c.parent_attempt_id
-WHERE c.status = 'evaluated' AND p.status = 'evaluated'`)
+FROM attempts c
+JOIN attempts p ON p.id = c.parent_attempt_id
+JOIN exercises e ON e.id = c.exercise_id
+WHERE c.status = 'evaluated' AND p.status = 'evaluated' AND e.type <> 'listening'`)
 	if err != nil {
 		return err
 	}

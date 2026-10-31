@@ -118,6 +118,19 @@ func TestEvaluateUsesTypeSpecificPrompt(t *testing.T) {
 	}
 }
 
+func TestListeningEvaluationShowsReferenceTranscript(t *testing.T) {
+	f := &fakeLLM{responses: []string{goodJSON}}
+	req := Request{Type: TypeListening, Prompt: "Type the phone number you hear.", ListeningMode: "numeric",
+		ExpectedText: "020 7946 0123", AcceptedForms: []string{"02079460123"}, Answer: "020 7946 0123"}
+	ev, err := NewService(f).Evaluate(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ev.ImprovedVersion != req.ExpectedText {
+		t.Errorf("improved version should be the reference transcript, got %q", ev.ImprovedVersion)
+	}
+}
+
 type llmFunc func(ctx context.Context, system, user string) (string, error)
 
 func (f llmFunc) Generate(ctx context.Context, system, user string) (string, error) {

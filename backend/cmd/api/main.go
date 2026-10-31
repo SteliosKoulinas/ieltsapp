@@ -24,6 +24,11 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
 		os.Exit(healthcheck())
 	}
+	// "api generate" is the manual content refresh command. It is never run by
+	// the server itself and never scheduled.
+	if len(os.Args) > 1 && os.Args[1] == "generate" {
+		os.Exit(runGenerate(os.Args[2:], log))
+	}
 
 	cfg, err := config.LoadWithDatabase()
 	if err != nil {
@@ -63,6 +68,19 @@ func main() {
 			log.Info("extra content loaded", "path", cfg.SeedFile, "new_exercises", n)
 		}
 	}
+	if cfg.SeedDir != "" {
+		n, err := st.SeedDir(ctx, cfg.SeedDir)
+		switch {
+		case errors.Is(err, os.ErrNotExist):
+			log.Info("content batch folder not found, skipping", "path", cfg.SeedDir)
+		case err != nil:
+			log.Error("content batch failed to load", "path", cfg.SeedDir, "err", err)
+			os.Exit(1)
+		default:
+			added += n
+			log.Info("content batches loaded", "path", cfg.SeedDir, "new_exercises", n)
+		}
+	}
 	log.Info("database ready", "new_exercises", added)
 
 	evaluator := eval.NewService(eval.NewClient(cfg.GeminiAPIKey, cfg.GeminiModel, cfg.GeminiBaseURL))
@@ -83,7 +101,7 @@ func main() {
 		_ = srv.Shutdown(shutdownCtx)
 	}()
 
-	log.Info("listening", "port", cfg.Port, "model", cfg.GeminiModel, "evals_per_minute", cfg.EvalRatePerMinute)
+	log.Info("starting api", "port", cfg.Port, "model", cfg.GeminiModel, "evals_per_minute", cfg.EvalRatePerMinute)
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Error("server stopped", "err", err)
 		os.Exit(1)

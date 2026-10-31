@@ -72,4 +72,7 @@ func TestValidateCorrectVerdictWithErrorsDependsOnType(t *testing.T) {
 	if err := ev.Validate(TypeWriting); err == nil {
 		t.Error("writing: correct verdict with an error issue must be rejected")
 	}
+	if err := ev.Validate(TypeListening); err == nil {
+		t.Error("listening: correct verdict with an error issue must be rejected")
+	}
 }

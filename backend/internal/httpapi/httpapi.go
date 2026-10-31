@@ -245,6 +245,10 @@ func (s *Server) createAttempt(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, "get exercise", err)
 		return
 	}
+	if ex.Type == eval.TypeListening {
+		writeErr(w, http.StatusNotFound, "exercise_not_found", "That exercise is no longer available.")
+		return
+	}
 	if parentID != "" {
 		parentEx, err := s.store.AttemptExerciseID(ctx, parentID)
 		if errors.Is(err, store.ErrNotFound) || (err == nil && parentEx != ex.ID) {

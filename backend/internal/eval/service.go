@@ -54,6 +54,12 @@ func (s *Service) Evaluate(ctx context.Context, req Request) (*Evaluation, error
 			if n > 0 {
 				slog.Warn("dropped issues quoting text the learner did not write", "count", n)
 			}
+			// For listening, the reference transcript is the answer to show.
+			// The verdict and issues still come from the model; this only keeps
+			// the displayed transcript identical to what was actually spoken.
+			if req.Type == TypeListening && strings.TrimSpace(req.ExpectedText) != "" {
+				ev.ImprovedVersion = req.ExpectedText
+			}
 			ev.Raw, ev.Calls, ev.Dropped = raw, i+1, n
 			return ev, nil
 		}

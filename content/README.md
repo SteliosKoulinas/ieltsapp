@@ -1,20 +1,57 @@
 # Extra content
 
-Αυτός ο φάκελος είναι προσαρτημένος στο container του API ως `/content`. Το API
-διαβάζει το αρχείο `generated.json` κατά την εκκίνηση, μετά το built-in seed.
+This folder is mounted into the API container as `/content`. It has two jobs:
 
-Για να προσθέσεις νέο υλικό:
+1. **Startup batches.** The API reads `generated.json` and every `.json` file in
+   `batches/` at startup, after the built-in seed. This is how you add material
+   by hand.
+2. **Manual generation output.** The `api generate` command writes each new
+   batch into `batches/` and inserts it into the database straight away.
 
-1. Φτιάξε ή αντέγραψε ένα JSON αρχείο με το ίδιο σχήμα που έχει το
-   `backend/internal/store/seed/exercises.json`.
-2. Αποθήκευσέ το εδώ ως `generated.json`.
-3. Τρέξε `docker compose restart api`.
+Loading is safe to repeat: a slug that already exists is not rewritten. If a
+file or folder is missing, the API starts normally and notes it in the logs.
+Nothing is generated on a schedule.
 
-Το φόρτωμα είναι ασφαλές να επαναληφθεί: ένα slug που υπάρχει ήδη δεν
-ξαναγράφεται. Αν το αρχείο δεν υπάρχει, το API ξεκινά κανονικά και το σημειώνει
-στα logs.
+## Generate new material
 
-Ελάχιστο παράδειγμα για μία λέξη:
+The generator calls Gemini once per command, validates the output, drops
+duplicates, writes a batch file, and inserts the accepted items. Run it from the
+project folder:
+
+```bash
+docker compose run --rm --user root api generate -type vocab -count 10
+docker compose run --rm --user root api generate -type writing -count 5
+```
+
+- `-count` is how many **new** valid items to keep, from 1 to 30. The model is
+  asked for a few extras so that duplicates and invalid items can be dropped.
+- `-out DIR` changes the batch folder. The default is `/content/batches`.
+- `--user root` is needed because the container runs as an unprivileged user and
+  the mounted folder belongs to the host user.
+
+The batch file stays on disk even if insertion fails, so a failed run does not
+waste the generation. Load it later by restarting the API, or rerun the
+generator (it will skip the slugs that are already present).
+
+Review new material before trusting it. It is AI-written and is **not official
+IELTS material**.
+
+## Add material by hand
+
+1. Create a JSON file with the shape shown below.
+2. Save it as `content/batches/<name>.json`, or replace `content/generated.json`.
+3. Run `docker compose restart api`.
+
+Batches are read in file name order. A bad file stops startup with a message
+naming the file and the item, so fix it before starting again.
+
+## JSON shapes
+
+Every item needs `slug`, `type`, `topic`, `cefr`, `tier` and `source`. `tier` is
+1 to 4, where 1 is the most useful material for a learner targeting IELTS 6.5.
+`source` records provenance: use `generated` for AI-written material.
+
+### Vocabulary
 
 ```json
 [
@@ -32,14 +69,31 @@
 ]
 ```
 
-Κανόνες που ελέγχονται πριν μπει το υλικό:
+### Writing
 
-- μοναδικό `slug`
-- `type` είναι `vocab` ή `writing`
-- `cefr` είναι `A2`, `B1`, `B2` ή `C1`
-- `topic` δεν είναι κενό
-- για `vocab`, το `context` περιέχει ακριβώς το `target_word`
-- `tier` είναι 1 έως 4 (1 = πιο σημαντικό)
+```json
+[
+  {
+    "slug": "writing-public-transport",
+    "type": "writing",
+    "prompt": "Some cities make public transport free. Do you think this is a good idea? Give one reason.",
+    "expected_length": "2 to 3 sentences",
+    "criteria": ["give a clear opinion", "support it with one reason"],
+    "topic": "transport",
+    "cefr": "B2",
+    "tier": 1,
+    "source": "generated"
+  }
+]
+```
 
-Το `source` δηλώνει την προέλευση. Χρησιμοποίησε `generated` για υλικό που
-έφτιαξε AI, ώστε να μη μπερδεύεται με επίσημο υλικό IELTS.
+## Rules checked before insertion
+
+- unique, lowercase `slug` using letters, digits and hyphens
+- `type` is `vocab` or `writing`
+- `cefr` is `A2`, `B1`, `B2` or `C1`
+- `topic` is not empty
+- no em dash (U+2014) in any text field
+- no claim that the material is "official IELTS" content
+- for `vocab`, `context` contains the exact `target_word`
+- for `writing`, `prompt` is not empty

@@ -33,7 +33,7 @@ POSTGRES_PASSWORD=$PASS
 WEB_PORT=8080
 API_PORT=8081
 EVAL_RATE_PER_MINUTE=10
-NEW_VOCAB_PER_DAY=8
+NEW_VOCAB_PER_DAY=0
 EOT
 unset KEY PASS
-echo ".env created (permissions 600). Next: docker compose up --build"
+echo ".env created (permissions 600). Next: docker compose up -d --build"

@@ -22,6 +22,10 @@ type Config struct {
 	NewVocabPerDay int
 	// SeedFile is an optional extra JSON batch loaded at startup.
 	SeedFile string
+	// SeedDir is an optional directory of JSON batches loaded at startup.
+	SeedDir string
+	// ContentDir is the folder the manual generator writes batches into.
+	ContentDir string
 }
 
 const (
@@ -42,8 +46,13 @@ func Load() (Config, error) {
 		DatabaseURL:       os.Getenv("DATABASE_URL"),
 		Port:              os.Getenv("PORT"),
 		EvalRatePerMinute: 10,
-		NewVocabPerDay:    8,
+		NewVocabPerDay:    0,
 		SeedFile:          os.Getenv("SEED_FILE"),
+		SeedDir:           os.Getenv("SEED_DIR"),
+		ContentDir:        os.Getenv("CONTENT_DIR"),
+	}
+	if cfg.ContentDir == "" {
+		cfg.ContentDir = "content"
 	}
 	if v := os.Getenv("EVAL_RATE_PER_MINUTE"); v != "" {
 		n, err := strconv.Atoi(v)
