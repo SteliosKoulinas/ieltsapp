@@ -410,20 +410,20 @@ func TestVocabularyScheduleDueFirstAndDailyLimit(t *testing.T) {
 		return box, due, streak
 	}
 
-	// A first exposure is "new" and a correct answer moves it to box 2, due one day later.
+	// A first exposure is "new" and a correct answer moves it up two boxes, due three days later.
 	first, err := s.NextExercise(ctx, "vocab", 0, opts(now))
 	if err != nil || first.Mode != "new" {
 		t.Fatalf("first exposure: %+v err=%v", first, err)
 	}
 	firstAttempt := answer(1, first, "correct", now, "")
 	box, due, streak := state(first.ID)
-	if box != 2 || streak != 1 || !due.Equal(now.Add(24*time.Hour)) {
+	if box != 3 || streak != 1 || !due.Equal(now.Add(3*24*time.Hour)) {
 		t.Errorf("after correct: box=%d streak=%d due=%v", box, streak, due)
 	}
 
 	// A rewrite must not touch the schedule.
 	answer(2, first, "incorrect", now.Add(time.Minute), firstAttempt)
-	if box, due2, _ := state(first.ID); box != 2 || !due2.Equal(due) {
+	if box, due2, _ := state(first.ID); box != 3 || !due2.Equal(due) {
 		t.Errorf("a rewrite changed the schedule: box=%d due=%v", box, due2)
 	}
 
@@ -432,10 +432,10 @@ func TestVocabularyScheduleDueFirstAndDailyLimit(t *testing.T) {
 	if err != nil || second.Mode != "new" || second.ID == first.ID {
 		t.Fatalf("second new word: %+v err=%v", second, err)
 	}
-	// A wrong answer restarts it at box 1 with a short relearning delay.
+	// A wrong answer restarts it at box 1 with the four-hour relearning delay.
 	answer(3, second, "incorrect", now.Add(2*time.Hour), "")
 	box, due, streak = state(second.ID)
-	if box != 1 || streak != 0 || !due.Equal(now.Add(2*time.Hour+10*time.Minute)) {
+	if box != 1 || streak != 0 || !due.Equal(now.Add(2*time.Hour+4*time.Hour)) {
 		t.Errorf("after incorrect: box=%d streak=%d due=%v", box, streak, due)
 	}
 
@@ -449,7 +449,7 @@ func TestVocabularyScheduleDueFirstAndDailyLimit(t *testing.T) {
 	}
 
 	// Once it is due, the review wins even though the new-word limit is reached.
-	review, err := s.NextExercise(ctx, "vocab", 0, opts(now.Add(2*time.Hour+11*time.Minute)))
+	review, err := s.NextExercise(ctx, "vocab", 0, opts(now.Add(6*time.Hour+time.Minute)))
 	if err != nil || review.Mode != "review" || review.ID != second.ID {
 		t.Fatalf("due review should come first: %+v err=%v", review, err)
 	}
@@ -487,13 +487,20 @@ func TestSuccessfulAnswerDoesNotRepeatSoon(t *testing.T) {
 		}
 	}
 
-	for i, verdict := range []string{"correct", "mostly_correct"} {
-		t.Run(verdict, func(t *testing.T) {
+	for i, tc := range []struct {
+		verdict string
+		box     int
+		wait    time.Duration
+	}{
+		{"correct", 3, 3 * 24 * time.Hour},
+		{"mostly_correct", 2, 24 * time.Hour},
+	} {
+		t.Run(tc.verdict, func(t *testing.T) {
 			ex, err := s.NextExercise(ctx, "vocab", 0, opts(now))
 			if err != nil {
 				t.Fatal(err)
 			}
-			answer(100+i, ex, verdict, now)
+			answer(100+i, ex, tc.verdict, now)
 
 			var box int
 			var due time.Time
@@ -501,20 +508,20 @@ func TestSuccessfulAnswerDoesNotRepeatSoon(t *testing.T) {
 				Scan(&box, &due); err != nil {
 				t.Fatal(err)
 			}
-			if box != 2 {
-				t.Errorf("%s should advance to box 2, got box %d", verdict, box)
+			if box != tc.box {
+				t.Errorf("%s should advance to box %d, got box %d", tc.verdict, tc.box, box)
 			}
-			if !due.Equal(now.Add(24 * time.Hour)) {
-				t.Errorf("%s should be due in 24 hours, got %v", verdict, due)
+			if !due.Equal(now.Add(tc.wait)) {
+				t.Errorf("%s should be due in %v, got %v", tc.verdict, tc.wait, due)
 			}
 
-			// Ten minutes later, the same word must not be served again.
+			// A few minutes later, the same word must not be served again.
 			next, err := s.NextExercise(ctx, "vocab", 0, opts(now.Add(10*time.Minute)))
 			if err != nil {
 				t.Fatal(err)
 			}
 			if next.ID == ex.ID {
-				t.Fatalf("%s word returned after 10 minutes", verdict)
+				t.Fatalf("%s word returned after 10 minutes", tc.verdict)
 			}
 			if next.Mode != "new" {
 				t.Errorf("expected a new word instead, got mode %q", next.Mode)
@@ -523,8 +530,9 @@ func TestSuccessfulAnswerDoesNotRepeatSoon(t *testing.T) {
 	}
 }
 
-// A wrong answer must return soon so the learner can try again.
-func TestWrongAnswerRepeatsSoon(t *testing.T) {
+// A wrong answer must return after a few hours, not after a few minutes, so one
+// mistake does not keep blocking the rest of a study session.
+func TestWrongAnswerRepeatsAfterHours(t *testing.T) {
 	s := storetest.New(t)
 	ctx := context.Background()
 	if _, err := s.Seed(ctx); err != nil {
@@ -549,12 +557,119 @@ func TestWrongAnswerRepeatsSoon(t *testing.T) {
 	if err := s.CompleteAttemptAt(ctx, id, ev("incorrect"), "m", "p", now); err != nil {
 		t.Fatal(err)
 	}
-	review, err := s.NextExercise(ctx, "vocab", 0, opts(now.Add(11*time.Minute)))
+
+	soon, err := s.NextExercise(ctx, "vocab", 0, opts(now.Add(11*time.Minute)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if soon.ID == ex.ID {
+		t.Fatal("a wrong answer should not return after 10 minutes")
+	}
+
+	review, err := s.NextExercise(ctx, "vocab", 0, opts(now.Add(4*time.Hour+time.Minute)))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if review.ID != ex.ID || review.Mode != "review" {
-		t.Fatalf("a wrong answer should return in ten minutes: got %+v", review)
+		t.Fatalf("a wrong answer should return after four hours: got %+v", review)
+	}
+}
+
+// Verdicts form a graded scale, so a half-right answer is not treated like a
+// completely wrong one and a completely correct answer earns the longest wait.
+func TestVerdictGradation(t *testing.T) {
+	s, raw := storetest.NewWithDB(t)
+	ctx := context.Background()
+	if _, err := s.Seed(ctx); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 10, 27, 9, 0, 0, 0, time.UTC)
+	ex, err := s.NextExercise(ctx, "vocab", 0, scheduleOpts())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cases := []struct {
+		name     string
+		verdict  string
+		startBox int
+		wantBox  int
+		wantWait time.Duration
+	}{
+		{"correct from box 1", "correct", 1, 3, 3 * 24 * time.Hour},
+		{"mostly correct from box 1", "mostly_correct", 1, 2, 24 * time.Hour},
+		{"partial from box 1", "partially_correct", 1, 1, 4 * time.Hour},
+		{"incorrect from box 1", "incorrect", 1, 1, 4 * time.Hour},
+		{"partial from box 3", "partially_correct", 3, 2, 24 * time.Hour},
+		{"correct from box 4", "correct", 4, 5, 21 * 24 * time.Hour},
+	}
+	for i, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := raw.Exec(
+				`UPDATE review_state SET box = $2, due_at = $3, streak = 0, lapses = 0 WHERE exercise_id = $1`,
+				ex.ID, tc.startBox, now); err != nil {
+				t.Fatal(err)
+			}
+			id := uuid(300 + i)
+			if _, err := s.BeginAttempt(ctx, store.BeginParams{ID: id, ExerciseID: ex.ID, Answer: "a"}); err != nil {
+				t.Fatal(err)
+			}
+			if err := s.CompleteAttemptAt(ctx, id, ev(tc.verdict), "m", "p", now); err != nil {
+				t.Fatal(err)
+			}
+			var box int
+			var due time.Time
+			if err := raw.QueryRow(`SELECT box, due_at FROM review_state WHERE exercise_id = $1`, ex.ID).
+				Scan(&box, &due); err != nil {
+				t.Fatal(err)
+			}
+			if box != tc.wantBox || !due.Equal(now.Add(tc.wantWait)) {
+				t.Errorf("box=%d due=%v, want box=%d due=%v", box, due, tc.wantBox, now.Add(tc.wantWait))
+			}
+		})
+	}
+}
+
+// The skip button must never offer a word the learner has already practised,
+// even when every word has a review scheduled.
+func TestSkipReturnsOnlyUnseenMaterial(t *testing.T) {
+	s, raw := storetest.NewWithDB(t)
+	ctx := context.Background()
+	if _, err := s.Seed(ctx); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 10, 27, 9, 0, 0, 0, time.UTC)
+	unseenOpts := store.ScheduleOptions{Now: now, UnseenOnly: true}
+
+	first, err := s.NextExercise(ctx, "vocab", 0, scheduleOpts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Skipping from an unseen word must return a different unseen word.
+	skipped, err := s.NextExercise(ctx, "vocab", first.ID, unseenOpts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if skipped.ID == first.ID || skipped.Mode != "new" {
+		t.Fatalf("skip should return a different new word: %+v", skipped)
+	}
+
+	// Once every word has been seen, vocabulary skip reports that it is out of
+	// new material instead of falling back to a review.
+	if _, err := raw.Exec(`
+INSERT INTO review_state (exercise_id, box, due_at, created_at, updated_at)
+SELECT id, 1, $1, $1, $1 FROM exercises WHERE status = 'published' AND type = 'vocab'
+ON CONFLICT (exercise_id) DO NOTHING`, now); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.NextExercise(ctx, "vocab", 0, unseenOpts); !errors.Is(err, store.ErrNoUnseen) {
+		t.Fatalf("expected ErrNoUnseen, got %v", err)
+	}
+
+	// Mixed practice still has unseen writing prompts to fall back to.
+	w, err := s.NextExercise(ctx, "", 0, unseenOpts)
+	if err != nil || w.Type != "writing" {
+		t.Fatalf("mixed skip should fall back to unseen writing: %+v err=%v", w, err)
 	}
 }
 
@@ -611,13 +726,13 @@ func TestStatsSRS(t *testing.T) {
 	if st.SRS.Tracked != 1 || st.SRS.DueNow != 0 || st.SRS.NewToday != 1 || st.SRS.NewPerDay != 8 {
 		t.Errorf("srs counters: %+v", st.SRS)
 	}
-	if len(st.SRS.Boxes) != 5 || st.SRS.Boxes[1].Count != 1 || st.SRS.Boxes[1].Box != 2 {
+	if len(st.SRS.Boxes) != 5 || st.SRS.Boxes[2].Count != 1 || st.SRS.Boxes[2].Box != 3 {
 		t.Errorf("srs boxes: %+v", st.SRS.Boxes)
 	}
 	if st.SRS.Mastered != 0 {
 		t.Errorf("nothing should be mastered yet: %+v", st.SRS)
 	}
-	if st.SRS.NextDueAt == nil || !st.SRS.NextDueAt.Equal(now.Add(24*time.Hour)) {
+	if st.SRS.NextDueAt == nil || !st.SRS.NextDueAt.Equal(now.Add(3*24*time.Hour)) {
 		t.Errorf("next due: %v", st.SRS.NextDueAt)
 	}
 

@@ -19,6 +19,14 @@ duplicates, writes a batch file, and inserts the accepted items. Run it from the
 project folder:
 
 ```bash
+bash scripts/generate-content.sh vocab 10
+bash scripts/generate-content.sh writing 5
+```
+
+The count is optional: vocabulary defaults to 10 and writing to 5. The script is
+a thin wrapper around the same command:
+
+```bash
 docker compose run --rm --user root api generate -type vocab -count 10
 docker compose run --rm --user root api generate -type writing -count 5
 ```

@@ -2,6 +2,7 @@ package generate
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,10 +38,10 @@ func seededStore(t *testing.T) *store.Store {
 func TestParseItems(t *testing.T) {
 	items := `[{"a":1},{"b":2}]`
 	cases := map[string]string{
-		"plain":     items,
-		"fence":     "```json\n" + items + "\n```",
-		"wrapper":   `{"items":` + items + `}`,
-		"surround":  "Here is the batch:\n" + items + "\nDone.",
+		"plain":      items,
+		"fence":      "```json\n" + items + "\n```",
+		"wrapper":    `{"items":` + items + `}`,
+		"surround":   "Here is the batch:\n" + items + "\nDone.",
 		"whitespace": "\n\n " + items + " \n",
 	}
 	for name, raw := range cases {
@@ -167,5 +168,149 @@ func TestBatchFileNameIsUnderTheOutputDirectory(t *testing.T) {
 	rel, err := filepath.Rel(dir, res.Path)
 	if err != nil || strings.HasPrefix(rel, "..") || filepath.IsAbs(rel) {
 		t.Errorf("batch file should stay inside the output directory: %q", res.Path)
+	}
+}
+
+func TestContainsExactWord(t *testing.T) {
+	cases := []struct {
+		text, word string
+		want       bool
+	}{
+		{"The form was clear.", "form", true},
+		{"The company will formulate a plan.", "form", false},
+		{"A well-dressed visitor arrived.", "well-dressed", true},
+		{"The visit was well dressed up.", "well-dressed", false},
+		{"Governments must assess the risk.", "assess", true},
+		{"Governments assessed the risk.", "assess", false},
+	}
+	for _, c := range cases {
+		if got := containsExactWord(c.text, c.word); got != c.want {
+			t.Errorf("containsExactWord(%q, %q) = %v, want %v", c.text, c.word, got, c.want)
+		}
+	}
+}
+
+func TestRunWordsUsesListedTargetsAndOverridesHints(t *testing.T) {
+	st := seededStore(t)
+	ctx := context.Background()
+	dir := t.TempDir()
+
+	out := `[
+	  {"slug":"vocab-juxtapose","context":"The exhibition juxtaposes old maps with satellite images.","target_word":"juxtapose","intended_meaning":"place two things side by side to compare them","topic":"culture","cefr":"B2","tier":1},
+	  {"slug":"vocab-ubiquitous","context":"Smartphones are ubiquitous in modern life.","target_word":"ubiquitous","intended_meaning":"found everywhere","topic":"technology","cefr":"C1","tier":4},
+	  {"slug":"vocab-tenacious","context":"She was tenacious in her search for evidence.","target_word":"tenacious","intended_meaning":"persistent","topic":"society","cefr":"C1","tier":1}
+	]`
+	res, err := Run(ctx, fakeLLM{out: out}, st, Options{
+		Type:   eval.TypeVocab,
+		OutDir: dir,
+		Words: []WordSpec{
+			{Word: "juxtapose", Tier: 3, CEFR: "C1"},
+			{Word: "ubiquitous", Tier: 2, CEFR: "B2"},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Requested != 2 || res.Accepted != 2 || res.Inserted != 2 || len(res.Missing) != 0 {
+		t.Fatalf("result: %+v", res)
+	}
+
+	body, err := os.ReadFile(res.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var items []struct {
+		Slug       string `json:"slug"`
+		TargetWord string `json:"target_word"`
+		Tier       int    `json:"tier"`
+		CEFR       string `json:"cefr"`
+	}
+	if err := json.Unmarshal(body, &items); err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("batch should contain only the two requested items, got %d", len(items))
+	}
+	hints := map[string]struct {
+		tier int
+		cefr string
+	}{}
+	slugs := map[string]string{}
+	for _, item := range items {
+		hints[item.TargetWord] = struct {
+			tier int
+			cefr string
+		}{item.Tier, item.CEFR}
+		slugs[item.TargetWord] = item.Slug
+	}
+	if got := hints["juxtapose"]; got.tier != 3 || got.cefr != "C1" {
+		t.Errorf("juxtapose hints = %+v, want tier 3 C1", got)
+	}
+	if got := hints["ubiquitous"]; got.tier != 2 || got.cefr != "B2" {
+		t.Errorf("ubiquitous hints = %+v, want tier 2 B2", got)
+	}
+	if got := slugs["juxtapose"]; got != "vocab-juxtapose" {
+		t.Errorf("juxtapose slug = %q, want vocab-juxtapose", got)
+	}
+	if got := slugs["ubiquitous"]; got != "vocab-ubiquitous" {
+		t.Errorf("ubiquitous slug = %q, want vocab-ubiquitous", got)
+	}
+}
+
+func TestSlugifyWord(t *testing.T) {
+	cases := map[string]string{
+		"anti-social":         "anti-social",
+		"well dressed":        "well-dressed",
+		"self-congratulatory": "self-congratulatory",
+		"child's play":        "childs-play",
+		"  Status  ":          "status",
+	}
+	for word, want := range cases {
+		if got := slugifyWord(word); got != want {
+			t.Errorf("slugifyWord(%q) = %q, want %q", word, got, want)
+		}
+	}
+}
+
+func TestRunWordsReportsMissingAndRejectsInflection(t *testing.T) {
+	st := seededStore(t)
+	ctx := context.Background()
+	dir := t.TempDir()
+
+	out := `[
+	  {"slug":"vocab-scrutinise","context":"The committee scrutinised the plan for two weeks.","target_word":"scrutinise","intended_meaning":"examine closely","topic":"work","cefr":"C1","tier":2},
+	  {"slug":"vocab-juxtapose","context":"The exhibition juxtaposes old maps with satellite images.","target_word":"juxtapose","intended_meaning":"place two things side by side to compare them","topic":"culture","cefr":"C1","tier":2}
+	]`
+	res, err := Run(ctx, fakeLLM{out: out}, st, Options{
+		Type:   eval.TypeVocab,
+		OutDir: dir,
+		Words:  []WordSpec{{Word: "scrutinise"}, {Word: "juxtapose"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Accepted != 1 || res.Inserted != 1 {
+		t.Fatalf("result: %+v", res)
+	}
+	if len(res.Missing) != 1 || res.Missing[0] != "scrutinise" {
+		t.Errorf("missing = %v, want [scrutinise]", res.Missing)
+	}
+}
+
+func TestRunWordsRejectsBadInput(t *testing.T) {
+	st := seededStore(t)
+	ctx := context.Background()
+	dir := t.TempDir()
+
+	cases := []Options{
+		{Type: eval.TypeWriting, OutDir: dir, Words: []WordSpec{{Word: "juxtapose"}}},
+		{Type: eval.TypeVocab, OutDir: dir, Words: []WordSpec{{Word: " "}}},
+		{Type: eval.TypeVocab, OutDir: dir, Words: []WordSpec{{Word: "juxtapose", Tier: 9}}},
+		{Type: eval.TypeVocab, OutDir: dir, Words: make([]WordSpec, 31)},
+	}
+	for _, opts := range cases {
+		if _, err := Run(ctx, fakeLLM{out: "[]"}, st, opts); err == nil {
+			t.Errorf("options should be rejected: %+v", opts)
+		}
 	}
 }

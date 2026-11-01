@@ -14,10 +14,11 @@ import (
 const defaultBaseURL = "https://generativelanguage.googleapis.com"
 
 type Client struct {
-	apiKey  string
-	model   string
-	baseURL string
-	http    *http.Client
+	apiKey         string
+	model          string
+	baseURL        string
+	http           *http.Client
+	thinkingBudget *int
 }
 
 // NewClient creates a Gemini client. baseURL is optional and defaults to the
@@ -40,6 +41,13 @@ func NewClientWithTimeout(apiKey, model, baseURL string, timeout time.Duration) 
 	}
 }
 
+// SetThinkingBudget turns model thinking on or off for this client. Content
+// generation uses 0 because the task is structured and latency matters. The
+// evaluator leaves it unset so the model can reason about the learner's answer.
+func (c *Client) SetThinkingBudget(budget int) {
+	c.thinkingBudget = &budget
+}
+
 type part struct {
 	Text string `json:"text"`
 }
@@ -48,8 +56,15 @@ type content struct {
 	Parts []part `json:"parts"`
 }
 type genConfig struct {
-	Temperature      float64 `json:"temperature"`
-	ResponseMIMEType string  `json:"responseMimeType"`
+	Temperature      float64         `json:"temperature"`
+	ResponseMIMEType string          `json:"responseMimeType"`
+	ThinkingConfig   *thinkingConfig `json:"thinkingConfig,omitempty"`
+}
+
+type thinkingConfig struct {
+	// 0 turns thinking off for models that allow it. A negative or missing
+	// value leaves the model default in place.
+	ThinkingBudget int `json:"thinkingBudget"`
 }
 type genRequest struct {
 	SystemInstruction *content  `json:"systemInstruction,omitempty"`
@@ -65,10 +80,14 @@ type genResponse struct {
 // Generate sends one request to the Gemini REST API and returns the raw text.
 // The API key goes in a header, never in the URL, so it cannot leak into logs.
 func (c *Client) Generate(ctx context.Context, system, user string) (string, error) {
+	gc := genConfig{Temperature: 0.2, ResponseMIMEType: "application/json"}
+	if c.thinkingBudget != nil {
+		gc.ThinkingConfig = &thinkingConfig{ThinkingBudget: *c.thinkingBudget}
+	}
 	body, err := json.Marshal(genRequest{
 		SystemInstruction: &content{Parts: []part{{Text: system}}},
 		Contents:          []content{{Role: "user", Parts: []part{{Text: user}}}},
-		GenerationConfig:  genConfig{Temperature: 0.2, ResponseMIMEType: "application/json"},
+		GenerationConfig:  gc,
 	})
 	if err != nil {
 		return "", err

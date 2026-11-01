@@ -144,10 +144,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-	nextExercise(type: 'any' | ExerciseType, excludeId?: number, tz?: string) {
+	nextExercise(type: 'any' | ExerciseType, excludeId?: number, tz?: string, unseen?: boolean) {
 		const q = new URLSearchParams({ type });
 		if (excludeId) q.set('exclude', String(excludeId));
 		if (tz) q.set('tz', tz);
+		if (unseen) q.set('unseen', '1');
 		return request<Exercise>(`/exercises/next?${q}`);
 	},
 	submitAttempt(body: {

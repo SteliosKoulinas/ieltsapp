@@ -41,7 +41,7 @@ Stop the stack with `docker compose down`. Your data stays in the `pgdata` volum
 - **Score 0 to 3** (not correct, partly, mostly, correct) is a practice measure, **not an IELTS band score**.
 - **Streak**: consecutive days with at least one evaluated answer, in your own time zone. It does not break while a full day without practice has not passed yet.
 - **Failed evaluations** are not counted anywhere, but are reported separately.
-- **Vocabulary schedule**: each word sits in one of 5 boxes. A correct or mostly correct answer moves it up one box, and the word does not return for at least 1 day: 1 day, 3 days, 8 days, 21 days. A word you know therefore does not reappear in the same session. A wrong or partial answer moves the word back so it returns soon: box 1 returns in 10 minutes. "Due now" means the word is waiting for review now. "New today" counts the new words you saw for the first time today. There is no daily limit by default.
+- **Vocabulary schedule**: each word sits in one of 5 boxes. A correct answer moves it up two boxes; a mostly correct answer moves it up one box. Both are at least 1 day away, so a word you know does not reappear in the same session. A partly correct answer moves down one box and returns within 1 day. A wrong answer restarts the word at box 1 and returns after 4 hours. The waiting times are 4 hours, 1 day, 3 days, 8 days, and 21 days. "Due now" means the word is waiting for review now. "New today" counts the new words you saw for the first time today. There is no daily limit by default.
 - **Priority order**: words have tiers 1 to 4. Tier 1 is the most useful vocabulary for B2/B2+ and IELTS Academic, and is introduced first. Reviews are not affected by tier: anything due comes before any new word.
 
 ## Exposure and security
@@ -78,16 +78,23 @@ The current built-in bank has **84 vocabulary and writing exercises (70 vocabula
 
 ### Adding material
 
-There is **no automatic content generation and no scheduled import**. New material appears only when you add it and restart the API.
+There is **no automatic content generation and no scheduled import**. New material appears only when you run the manual generator, or when you add a batch file and restart the API.
 
 To generate new material with Gemini, run the manual generator:
+
+```bash
+bash scripts/generate-content.sh vocab 10
+bash scripts/generate-content.sh writing 5
+```
+
+The count is optional: vocabulary defaults to 10 and writing to 5, and the maximum is 30. The script wraps the same command you can run yourself:
 
 ```bash
 docker compose run --rm --user root api generate -type vocab -count 10
 docker compose run --rm --user root api generate -type writing -count 5
 ```
 
-The generator validates the output, drops duplicates, writes a batch file under `content/batches/`, and inserts the accepted items into the database. It runs only when you start it, never on a schedule. Review the output before trusting it: it is AI-written and **not official IELTS material**.
+The generator validates the output, drops duplicates, writes a batch file under `content/batches/`, and inserts the accepted items into the database. Nothing runs on a schedule. Review the output before trusting it: it is AI-written and **not official IELTS material**.
 
 To add a batch by hand:
 
@@ -99,7 +106,8 @@ See `content/README.md` for the format, examples, and the validation rules.
 
 ### How exercises are selected
 
-- **Vocabulary**: due reviews first, in random order among words that are due. If no review is due, a new word is chosen by tier, with random tie-breaking. If you set `NEW_VOCAB_PER_DAY` to a positive number, new words stop after that cap. A word answered correctly or mostly correctly moves up a box and is at least 24 hours away, so it does not return in the same session.
+- **Vocabulary**: due reviews first, in random order among words that are due. If no review is due, a new word is chosen by tier, with random tie-breaking. If you set `NEW_VOCAB_PER_DAY` to a positive number, new words stop after that cap. A correct answer moves the word up two boxes and at least 24 hours away; a mostly correct answer moves it up one box and at least 24 hours away. A partly correct answer moves down one box and returns within 24 hours. A wrong answer returns to box 1 and comes back after 4 hours.
+- **Skip**: asks only for material you have never seen. It never returns a word from the review schedule. When no unseen material is left, it says so instead of repeating an old word; generate more content with the script above.
 - **Writing**: prompts you have never seen first, then the ones seen longest ago. Writing is not part of the spaced repetition schedule, so a prompt can eventually return after you have seen the whole bank.
 - **Mixed** prefers vocabulary and falls back to writing when no word is available. The previous exercise is avoided when there is another option.
 
@@ -165,7 +173,7 @@ The frontend uses Tailwind CSS v4 through `@tailwindcss/vite`. Styling lives in 
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/health` | health, checks the database too |
-| GET | `/api/exercises/next?type=vocab\|writing\|any&exclude=ID&tz=YOUR_TIME_ZONE` | next vocabulary or writing exercise |
+| GET | `/api/exercises/next?type=vocab\|writing\|any&exclude=ID&tz=YOUR_TIME_ZONE&unseen=1` | next vocabulary or writing exercise; `unseen=1` returns only material never seen before |
 | POST | `/api/attempts` | submit and evaluate (idempotent by `id`) |
 | GET | `/api/attempts?limit=&offset=` | history |
 | GET | `/api/attempts/{id}` | one answer with full feedback |
@@ -182,6 +190,7 @@ docker-compose.yml        db + api + web
 .env.example              public template (placeholders)
 scripts/init-env.sh       creates .env
 scripts/smoke.sh          quick check (spends 1 AI call)
+scripts/generate-content.sh  manual vocab and writing generation
 backend/                  Go API
   cmd/api                 server
   cmd/evalcheck           live AI quality check

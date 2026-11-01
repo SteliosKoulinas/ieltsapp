@@ -20,16 +20,23 @@ var ErrDailyLimit = errors.New("daily new item limit reached")
 // use NextDueAt to tell the learner when to come back.
 var ErrNothingDue = errors.New("nothing is due right now")
 
+// ErrNoUnseen means every exercise of the requested type has already been seen.
+// The skip button uses this to ask for material the learner has never met.
+var ErrNoUnseen = errors.New("no unseen exercises left")
+
 // ErrInvalidMode means a listening request asked for a mode other than text or
 // numeric.
 var ErrInvalidMode = errors.New("listening mode must be text or numeric")
 
 // ScheduleOptions controls selection. Now and DayStart are passed in so the
-// server's local-day boundary follows the learner's time zone.
+// server's local-day boundary follows the learner's time zone. UnseenOnly asks
+// for material the learner has never seen, ignoring the review schedule; the
+// skip button uses it.
 type ScheduleOptions struct {
-	Now       time.Time
-	DayStart  time.Time
-	NewPerDay int
+	Now        time.Time
+	DayStart   time.Time
+	NewPerDay  int
+	UnseenOnly bool
 }
 
 // Exercise is shared content. Reference answers are never serialized to the
@@ -155,16 +162,36 @@ func (s *Store) GetExercise(ctx context.Context, id int64) (*Exercise, error) {
 // by tier (1 is the most useful), then at random. Writing exercises keep the
 // simpler rule: never attempted first, then the one attempted longest ago.
 //
+// When opts.UnseenOnly is set, the schedule is ignored and only unseen material
+// is returned; ErrNoUnseen means the skip button has run out of new material.
+//
 // typ is "vocab", "writing", or "" for either. Listening has its own endpoint
 // and its own schedule, so it never appears here.
 func (s *Store) NextExercise(ctx context.Context, typ string, excludeID int64, opts ScheduleOptions) (*Exercise, error) {
 	s.fillScheduleDefaults(&opts)
 	switch typ {
 	case eval.TypeVocab:
+		if opts.UnseenOnly {
+			return s.nextUnseenVocab(ctx, excludeID)
+		}
 		return s.nextVocab(ctx, excludeID, opts)
 	case eval.TypeWriting:
+		if opts.UnseenOnly {
+			return s.nextUnseenWriting(ctx, excludeID)
+		}
 		return s.nextWriting(ctx, excludeID)
 	default:
+		if opts.UnseenOnly {
+			// Mixed skip: prefer an unseen word, then an unseen writing prompt.
+			e, err := s.nextUnseenVocab(ctx, excludeID)
+			if err == nil {
+				return e, nil
+			}
+			if !errors.Is(err, ErrNoUnseen) {
+				return nil, err
+			}
+			return s.nextUnseenWriting(ctx, excludeID)
+		}
 		// Mixed practice: prefer due reviews, then new vocabulary, and fall
 		// back to writing when the vocabulary schedule is finished for now.
 		e, err := s.nextVocab(ctx, excludeID, opts)
@@ -283,6 +310,47 @@ LIMIT 1`
 	e, err := scanExercise(s.db.QueryRowContext(ctx, q, excludeID))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
+	}
+	return e, err
+}
+
+// nextUnseenVocab returns a word the learner has never been given. A word is
+// unseen when it has no review_state row. Skipping must not fall back to a word
+// the learner has already met, even when every word is scheduled for later.
+func (s *Store) nextUnseenVocab(ctx context.Context, excludeID int64) (*Exercise, error) {
+	row := s.db.QueryRowContext(ctx, `
+SELECT `+exerciseColumns+`
+FROM exercises e
+LEFT JOIN review_state r ON r.exercise_id = e.id
+WHERE e.status = 'published' AND e.type = 'vocab' AND r.exercise_id IS NULL
+ORDER BY (e.id = $1) ASC, e.tier ASC, random()
+LIMIT 1`, excludeID)
+	e, err := scanExercise(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNoUnseen
+	}
+	if err != nil {
+		return nil, err
+	}
+	e.Mode = "new"
+	return e, nil
+}
+
+// nextUnseenWriting returns a writing prompt with no accepted attempt yet.
+func (s *Store) nextUnseenWriting(ctx context.Context, excludeID int64) (*Exercise, error) {
+	row := s.db.QueryRowContext(ctx, `
+SELECT `+exerciseColumns+`
+FROM exercises e
+WHERE e.status = 'published' AND e.type = 'writing'
+  AND NOT EXISTS (
+      SELECT 1 FROM attempts a
+      WHERE a.exercise_id = e.id AND a.parent_attempt_id IS NULL AND a.status <> 'failed'
+  )
+ORDER BY (e.id = $1) ASC, e.tier ASC, random()
+LIMIT 1`, excludeID)
+	e, err := scanExercise(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNoUnseen
 	}
 	return e, err
 }

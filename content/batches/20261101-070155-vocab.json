@@ -1,0 +1,41 @@
+[
+  {
+    "accepted_forms": [],
+    "cefr": "C1",
+    "context": "The researchers gathered empirical data to test their hypothesis that prolonged screen exposure alters sleep architecture in adolescents.",
+    "intended_meaning": "a proposed explanation or theory put forward as a basis for further empirical testing",
+    "prompt": "Explain what \"hypothesis\" means in this sentence, using your own words.",
+    "slug": "vocab-hypothesis",
+    "source": "generated",
+    "target_word": "hypothesis",
+    "tier": 2,
+    "topic": "science",
+    "type": "vocab"
+  },
+  {
+    "accepted_forms": [],
+    "cefr": "C1",
+    "context": "Digital monitoring has become so pervasive in the modern workplace that many employees feel unable to take genuine breaks.",
+    "intended_meaning": "spreading widely throughout an area or group of people",
+    "prompt": "Explain what \"pervasive\" means in this sentence, using your own words.",
+    "slug": "vocab-pervasive",
+    "source": "generated",
+    "target_word": "pervasive",
+    "tier": 2,
+    "topic": "technology",
+    "type": "vocab"
+  },
+  {
+    "accepted_forms": [],
+    "cefr": "C1",
+    "context": "Global immunisation campaigns have managed to eradicate smallpox and dramatically reduce instances of other infectious diseases.",
+    "intended_meaning": "to completely eliminate, destroy or put an end to something",
+    "prompt": "Explain what \"eradicate\" means in this sentence, using your own words.",
+    "slug": "vocab-eradicate",
+    "source": "generated",
+    "target_word": "eradicate",
+    "tier": 2,
+    "topic": "health",
+    "type": "vocab"
+  }
+]

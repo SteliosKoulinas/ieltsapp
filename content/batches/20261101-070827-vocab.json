@@ -1,0 +1,67 @@
+[
+  {
+    "accepted_forms": [],
+    "cefr": "C1",
+    "context": "The region experienced an unprecedented rise in sea levels last year, surprising local climate researchers.",
+    "intended_meaning": "never done or known before",
+    "prompt": "Explain what \"unprecedented\" means in this sentence, using your own words.",
+    "slug": "vocab-unprecedented",
+    "source": "generated",
+    "target_word": "unprecedented",
+    "tier": 1,
+    "topic": "environment",
+    "type": "vocab"
+  },
+  {
+    "accepted_forms": [],
+    "cefr": "C1",
+    "context": "The university brought together researchers from disparate academic disciplines to solve the complex urban planning issue.",
+    "intended_meaning": "essentially different in kind or impossible to compare",
+    "prompt": "Explain what \"disparate\" means in this sentence, using your own words.",
+    "slug": "vocab-disparate",
+    "source": "generated",
+    "target_word": "disparate",
+    "tier": 2,
+    "topic": "education",
+    "type": "vocab"
+  },
+  {
+    "accepted_forms": [],
+    "cefr": "C1",
+    "context": "The rapid proliferation of automated customer service tools has drastically altered modern retail operations.",
+    "intended_meaning": "rapid increase in numbers or amount",
+    "prompt": "Explain what \"proliferation\" means in this sentence, using your own words.",
+    "slug": "vocab-proliferation",
+    "source": "generated",
+    "target_word": "proliferation",
+    "tier": 2,
+    "topic": "technology",
+    "type": "vocab"
+  },
+  {
+    "accepted_forms": [],
+    "cefr": "B2",
+    "context": "Excessive consumption of processed foods can have a detrimental effect on long-term physical wellbeing.",
+    "intended_meaning": "tending to cause harm or damage",
+    "prompt": "Explain what \"detrimental\" means in this sentence, using your own words.",
+    "slug": "vocab-detrimental",
+    "source": "generated",
+    "target_word": "detrimental",
+    "tier": 1,
+    "topic": "health",
+    "type": "vocab"
+  },
+  {
+    "accepted_forms": [],
+    "cefr": "B2",
+    "context": "The government introduced a financial subsidy to encourage more citizens to install solar panels on their homes.",
+    "intended_meaning": "money granted by the government to assist an industry or business",
+    "prompt": "Explain what \"subsidy\" means in this sentence, using your own words.",
+    "slug": "vocab-subsidy",
+    "source": "generated",
+    "target_word": "subsidy",
+    "tier": 1,
+    "topic": "finance",
+    "type": "vocab"
+  }
+]

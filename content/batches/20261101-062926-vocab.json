@@ -1,0 +1,15 @@
+[
+  {
+    "accepted_forms": [],
+    "cefr": "C1",
+    "context": "The committee decided to scrutinise every detail of the proposed research budget before releasing the funds.",
+    "intended_meaning": "to examine something very carefully and thoroughly",
+    "prompt": "Explain what \"scrutinise\" means in this sentence, using your own words.",
+    "slug": "vocab-scrutinise-1",
+    "source": "generated",
+    "target_word": "scrutinise",
+    "tier": 1,
+    "topic": "science",
+    "type": "vocab"
+  }
+]

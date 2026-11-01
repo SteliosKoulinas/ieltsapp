@@ -120,6 +120,9 @@ func TestNextExercise(t *testing.T) {
 	if code, _ := e.do("GET", "/api/exercises/next?exclude=abc", nil); code != 400 {
 		t.Errorf("invalid exclude should be 400, got %d", code)
 	}
+	if code, _ := e.do("GET", "/api/exercises/next?unseen=maybe", nil); code != 400 {
+		t.Errorf("invalid unseen should be 400, got %d", code)
+	}
 	a := e.exercise("any")
 	b := func() map[string]any {
 		_, ex := e.do("GET", "/api/exercises/next?exclude="+strings.TrimSuffix(strings.TrimPrefix(jsonNum(a["id"]), ""), ""), nil)
@@ -127,6 +130,18 @@ func TestNextExercise(t *testing.T) {
 	}()
 	if exID(a) == exID(b) {
 		t.Error("exclude should avoid repeating the same exercise")
+	}
+	// unseen=1 asks only for material never seen, so it must not return the
+	// excluded exercise even though that exercise has no review row yet.
+	u := func() map[string]any {
+		_, ex := e.do("GET", "/api/exercises/next?type=vocab&unseen=1&exclude="+jsonNum(a["id"]), nil)
+		return ex
+	}()
+	if u["type"] != "vocab" {
+		t.Errorf("unseen=1 should return a vocabulary word: %v", u)
+	}
+	if exID(u) == exID(a) {
+		t.Error("unseen=1 should not return the excluded exercise")
 	}
 }
 

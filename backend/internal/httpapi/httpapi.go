@@ -154,6 +154,15 @@ func (s *Server) nextExercise(w http.ResponseWriter, r *http.Request) {
 		}
 		exclude = n
 	}
+	unseen := false
+	switch r.URL.Query().Get("unseen") {
+	case "", "0", "false":
+	case "1", "true":
+		unseen = true
+	default:
+		writeErr(w, http.StatusBadRequest, "invalid_unseen", "unseen must be 1 or 0.")
+		return
+	}
 	loc, ok := s.locationParam(r)
 	if !ok {
 		writeErr(w, http.StatusBadRequest, "invalid_timezone", "tz must be an IANA time zone name such as Europe/Athens.")
@@ -161,12 +170,17 @@ func (s *Server) nextExercise(w http.ResponseWriter, r *http.Request) {
 	}
 	now := s.now().In(loc)
 	opts := store.ScheduleOptions{
-		Now:       now,
-		DayStart:  time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc),
-		NewPerDay: s.newVocabPerDay,
+		Now:        now,
+		DayStart:   time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc),
+		NewPerDay:  s.newVocabPerDay,
+		UnseenOnly: unseen,
 	}
 	ex, err := s.store.NextExercise(r.Context(), typ, exclude, opts)
 	switch {
+	case errors.Is(err, store.ErrNoUnseen):
+		writeErr(w, http.StatusNotFound, "no_unseen",
+			"You have already seen every exercise for this choice. Generate more content, or continue with due reviews.")
+		return
 	case errors.Is(err, store.ErrDailyLimit):
 		writeErr(w, http.StatusNotFound, "daily_limit_reached",
 			"You have reached the daily limit for new words. Due reviews are unaffected, and writing practice is still available.")

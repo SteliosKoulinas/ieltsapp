@@ -2,6 +2,7 @@ package eval
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -96,3 +97,43 @@ func TestGenerateStatusHandling(t *testing.T) {
 		})
 	}
 }
+
+func TestThinkingBudgetIsOptional(t *testing.T) {
+	tests := []struct {
+		name   string
+		budget *int
+		want   bool
+	}{
+		{"default", nil, false},
+		{"off", intPtr(0), true},
+		{"fixed", intPtr(1024), true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var got genRequest
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+					t.Error(err)
+				}
+				_, _ = w.Write([]byte(`{"candidates":[{"content":{"parts":[{"text":"ok"}]}}]}`))
+			}))
+			defer srv.Close()
+
+			c := NewClient("secret-key", "test-model", srv.URL)
+			if tc.budget != nil {
+				c.SetThinkingBudget(*tc.budget)
+			}
+			if _, err := c.Generate(context.Background(), "sys", "user"); err != nil {
+				t.Fatal(err)
+			}
+			if got.GenerationConfig.ThinkingConfig != nil != tc.want {
+				t.Fatalf("thinking config present = %v, want %v", got.GenerationConfig.ThinkingConfig != nil, tc.want)
+			}
+			if tc.budget != nil && got.GenerationConfig.ThinkingConfig.ThinkingBudget != *tc.budget {
+				t.Errorf("budget = %d, want %d", got.GenerationConfig.ThinkingConfig.ThinkingBudget, *tc.budget)
+			}
+		})
+	}
+}
+
+func intPtr(v int) *int { return &v }

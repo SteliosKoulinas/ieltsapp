@@ -1,0 +1,3 @@
+hypothesis	2	C1
+pervasive	2	C1
+eradicate	2	C1

@@ -1,0 +1,41 @@
+[
+  {
+    "accepted_forms": [],
+    "cefr": "C1",
+    "context": "The researchers decided that theoretical models were insufficient and insisted on gathering empirical data through controlled laboratory trials.",
+    "intended_meaning": "based on observation, experiment, or practical experience rather than theory alone",
+    "prompt": "Explain what \"empirical\" means in this sentence, using your own words.",
+    "slug": "vocab-empirical-science",
+    "source": "generated",
+    "target_word": "empirical",
+    "tier": 2,
+    "topic": "science",
+    "type": "vocab"
+  },
+  {
+    "accepted_forms": [],
+    "cefr": "C1",
+    "context": "Engineers must acknowledge the inherent risks of automated driving systems before introducing them to public highways.",
+    "intended_meaning": "existing as a natural, permanent, or inseparable quality of something",
+    "prompt": "Explain what \"inherent\" means in this sentence, using your own words.",
+    "slug": "vocab-inherent-technology",
+    "source": "generated",
+    "target_word": "inherent",
+    "tier": 2,
+    "topic": "technology",
+    "type": "vocab"
+  },
+  {
+    "accepted_forms": [],
+    "cefr": "C1",
+    "context": "Ecologists warn that once ocean temperatures cross a specific threshold, coral bleaching becomes virtually irreversible.",
+    "intended_meaning": "a critical level or point at which a new effect or change begins to take place",
+    "prompt": "Explain what \"threshold\" means in this sentence, using your own words.",
+    "slug": "vocab-threshold-environment",
+    "source": "generated",
+    "target_word": "threshold",
+    "tier": 2,
+    "topic": "environment",
+    "type": "vocab"
+  }
+]

@@ -1,0 +1,67 @@
+[
+  {
+    "accepted_forms": [],
+    "cefr": "B2",
+    "context": "The expansion of digital streaming services has opened up a lucrative market for independent filmmakers seeking global distribution.",
+    "intended_meaning": "producing a large amount of profit or money",
+    "prompt": "Explain what \"lucrative\" means in this sentence, using your own words.",
+    "slug": "vocab-lucrative-market",
+    "source": "generated",
+    "target_word": "lucrative",
+    "tier": 2,
+    "topic": "finance",
+    "type": "vocab"
+  },
+  {
+    "accepted_forms": [],
+    "cefr": "B2",
+    "context": "Excessive commercial stalls near the historic monument detract from the solemn atmosphere of the heritage site.",
+    "intended_meaning": "diminish the worth, value, or quality of something",
+    "prompt": "Explain what \"detract\" means in this sentence, using your own words.",
+    "slug": "vocab-detract-tourism",
+    "source": "generated",
+    "target_word": "detract",
+    "tier": 2,
+    "topic": "tourism",
+    "type": "vocab"
+  },
+  {
+    "accepted_forms": [],
+    "cefr": "B2",
+    "context": "Pharmaceutical companies must comply with stringent regulations before any new medication can be approved for public use.",
+    "intended_meaning": "extremely strict, precise, or demanding",
+    "prompt": "Explain what \"stringent\" means in this sentence, using your own words.",
+    "slug": "vocab-stringent-health",
+    "source": "generated",
+    "target_word": "stringent",
+    "tier": 1,
+    "topic": "health",
+    "type": "vocab"
+  },
+  {
+    "accepted_forms": [],
+    "cefr": "B2",
+    "context": "Universities increasingly rely on open-access repositories to disseminate research findings to scholars around the world.",
+    "intended_meaning": "spread or distribute information widely",
+    "prompt": "Explain what \"disseminate\" means in this sentence, using your own words.",
+    "slug": "vocab-disseminate-education",
+    "source": "generated",
+    "target_word": "disseminate",
+    "tier": 2,
+    "topic": "education",
+    "type": "vocab"
+  },
+  {
+    "accepted_forms": [],
+    "cefr": "B2",
+    "context": "Years of collaborative research will culminate in the launch of the new satellite next month.",
+    "intended_meaning": "reach a climax or final point of highest development",
+    "prompt": "Explain what \"culminate\" means in this sentence, using your own words.",
+    "slug": "vocab-culminate-science",
+    "source": "generated",
+    "target_word": "culminate",
+    "tier": 2,
+    "topic": "science",
+    "type": "vocab"
+  }
+]

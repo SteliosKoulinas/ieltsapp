@@ -41,6 +41,11 @@
 	let loadError = $state<string | null>(null);
 	let loadErrorCode = $state<string | null>(null);
 
+	// Skipping asks the server for unseen material only. When none is left, the
+	// current exercise stays on screen and this message explains why.
+	let skipping = $state(false);
+	let skipError = $state<string | null>(null);
+
 	let answer = $state('');
 	let attemptId = $state(newId());
 	let parentId = $state<string | null>(null);
@@ -78,6 +83,7 @@
 		previous = null;
 		submitError = null;
 		failedText = null;
+		skipError = null;
 	}
 
 	async function loadNext() {
@@ -95,6 +101,25 @@
 			loadErrorCode = e instanceof ApiError ? e.code : null;
 		} finally {
 			loading = false;
+		}
+	}
+
+	// Skip must show material the learner has never seen. It never falls back to
+	// a word from the review schedule, because that is what made Skip feel
+	// broken: it kept returning words that had already been practised.
+	async function skip() {
+		if (!exercise || skipping) return;
+		skipping = true;
+		skipError = null;
+		try {
+			exercise = await api.nextExercise(mode, exercise.id, userTimeZone(), true);
+			reset();
+			await tick();
+			textarea?.focus();
+		} catch (e) {
+			skipError = e instanceof ApiError ? e.message : 'Could not load new material.';
+		} finally {
+			skipping = false;
 		}
 	}
 
@@ -245,13 +270,20 @@
 					</div>
 				{/if}
 
+				{#if skipError}
+					<div class={alert} role="alert">
+						<strong class={alertTitle}>No new material left</strong>
+						<span>{skipError}</span>
+					</div>
+				{/if}
+
 				<div class="flex flex-wrap gap-[0.6rem]">
 					<button class={btnPrimary} type="submit" disabled={!canSubmit}>
 						{submitError?.retryable ? 'Try again' : 'Get feedback'}
 					</button>
 					{#if !previous}
-						<button class={btn} type="button" onclick={loadNext} disabled={submitting}>
-							Skip this exercise
+						<button class={btn} type="button" onclick={skip} disabled={submitting || skipping}>
+							{skipping ? 'Finding new material…' : 'Skip to new material'}
 						</button>
 					{/if}
 				</div>

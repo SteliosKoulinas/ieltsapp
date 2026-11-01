@@ -1,0 +1,15 @@
+[
+  {
+    "accepted_forms": [],
+    "cefr": "B2",
+    "context": "Community leaders met to discuss strategies for reducing youth violence in the city centre.",
+    "intended_meaning": "behaviour involving physical force intended to hurt, damage, or kill someone",
+    "prompt": "Explain what \"violence\" means in this sentence, using your own words.",
+    "slug": "vocab-violence",
+    "source": "generated",
+    "target_word": "violence",
+    "tier": 1,
+    "topic": "society",
+    "type": "vocab"
+  }
+]

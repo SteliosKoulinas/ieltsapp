@@ -177,11 +177,14 @@ WHERE exercise_id = $1`, exerciseID, box, due, streak, lapses, verdict, now)
 }
 
 // reviewInterval is the waiting time after a successful review of a box.
-// Box 1 is a short relearning step; box 5 counts as mastered by the stats.
+// Box 1 is a relearning step measured in hours, not minutes: a word answered
+// badly should return later the same day, so the learner can keep using the app
+// instead of seeing the same word every few minutes. Box 5 counts as mastered
+// by the stats.
 func reviewInterval(box int) time.Duration {
 	switch box {
 	case 1:
-		return 10 * time.Minute
+		return 4 * time.Hour
 	case 2:
 		return 24 * time.Hour
 	case 3:
@@ -195,14 +198,19 @@ func reviewInterval(box int) time.Duration {
 
 // scheduleReview applies a verdict to a Leitner box.
 //
-// A correct or mostly correct answer means the learner knew the word: the word
-// moves up one box and is not shown again for at least one day, so a successful
-// answer cannot come back in the same study session. Treating mostly_correct as
-// progress matters: it means the right idea with a small imperfection, and
-// repeating such a word every ten minutes would never let it advance.
+// The four verdicts form a graded scale:
 //
-// A partial answer moves the word down; a wrong answer restarts it at box 1
-// with the short relearning delay, so mistakes are repeated soon.
+//   - correct: the word moves up two boxes, so a word known well gets a
+//     noticeably longer wait than one known approximately.
+//   - mostly_correct: up one box. The right idea with a small imperfection still
+//     counts as progress, so it is not repeated in the same session.
+//   - partially_correct: down one box, but the next wait is capped at one day.
+//     A half-known word returns within hours or the next day, not weeks.
+//   - incorrect: back to box 1. The relearning step is four hours, so a mistake
+//     returns later in the day and does not trap the learner in a short loop.
+//
+// A word answered correctly or mostly correctly is never due sooner than one
+// day, which keeps it out of the same study session.
 func scheduleReview(box, streak, lapses int, verdict string, now time.Time) (int, time.Time, int, int) {
 	if box < 1 {
 		box = 1
@@ -210,7 +218,7 @@ func scheduleReview(box, streak, lapses int, verdict string, now time.Time) (int
 	interval := reviewInterval(box)
 	switch verdict {
 	case "correct":
-		box = min(box+1, 5)
+		box = min(box+2, 5)
 		streak++
 		interval = reviewInterval(box)
 	case "mostly_correct":
@@ -221,7 +229,7 @@ func scheduleReview(box, streak, lapses int, verdict string, now time.Time) (int
 		box = max(box-1, 1)
 		streak = 0
 		lapses++
-		interval = reviewInterval(box)
+		interval = min(reviewInterval(box), 24*time.Hour)
 	case "incorrect":
 		box = 1
 		streak = 0

@@ -117,7 +117,7 @@
 			<h2 class="mb-2 text-xl font-bold">Vocabulary schedule</h2>
 			<p class={`${small} ${muted}`}>
 				Words return after a waiting time that grows each time you answer them correctly. A wrong
-				answer brings the word back the same day. Due reviews always come first and are never
+				answer brings the word back after a few hours. Due reviews always come first and are never
 				limited. New words are unlimited by default; you can set a daily cap if you want one.
 			</p>
 			{#if stats.srs.tracked === 0}
@@ -162,7 +162,7 @@
 									<td class={td}>{b.box}</td>
 									<td class={`${td} ${num}`}>{b.count}</td>
 									<td class={`${td} ${small} ${muted}`}>
-										{#if b.box === 1}10 minutes
+										{#if b.box === 1}4 hours
 										{:else if b.box === 2}1 day
 										{:else if b.box === 3}3 days
 										{:else if b.box === 4}8 days
@@ -177,8 +177,10 @@
 					<p class={`${small} ${muted}`}>Next review: {formatDateTime(stats.srs.next_due_at)}.</p>
 				{/if}
 				<p class={`${small} ${muted}`}>
-					A correct or mostly correct answer moves the word up one box and at least 1 day away.
-					A wrong or partial answer moves it back to box 1, 10 minutes away.
+					A correct answer moves the word up two boxes and at least 1 day away. A mostly correct
+					answer moves it up one box and at least 1 day away. A partly correct answer moves it down
+					one box but returns within 1 day. A wrong answer restarts it at box 1 and returns after 4
+					hours.
 				</p>
 			{/if}
 		</section>

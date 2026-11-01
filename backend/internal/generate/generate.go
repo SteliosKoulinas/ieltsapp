@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -26,9 +27,18 @@ type LLM interface {
 }
 
 type Options struct {
-	Type   string // vocab, writing or listening
-	Count  int    // number of new items to keep
-	OutDir string // directory for the batch file
+	Type   string     // vocab, writing or listening
+	Count  int        // number of new items to keep
+	OutDir string     // directory for the batch file
+	Words  []WordSpec // optional fixed vocabulary targets; Count is ignored
+}
+
+// WordSpec is one requested vocabulary target. Tier and CEFR are curriculum
+// hints from the operator; zero or empty means the model chooses.
+type WordSpec struct {
+	Word string
+	Tier int
+	CEFR string
 }
 
 // Result reports what happened, including the batch path when one was written.
@@ -39,6 +49,7 @@ type Result struct {
 	Accepted  int
 	Skipped   int
 	Inserted  int
+	Missing   []string // requested words the model did not deliver
 }
 
 // Run asks the model for new items, validates them, writes a batch file and
@@ -48,11 +59,29 @@ func Run(ctx context.Context, llm LLM, st *store.Store, opts Options) (*Result, 
 	if opts.Type != eval.TypeVocab && opts.Type != eval.TypeWriting && opts.Type != eval.TypeListening {
 		return nil, fmt.Errorf("type must be vocab, writing or listening")
 	}
+	wordsMode := len(opts.Words) > 0
+	if wordsMode {
+		if opts.Type != eval.TypeVocab {
+			return nil, fmt.Errorf("a fixed word list is only supported for vocab")
+		}
+		if len(opts.Words) > 30 {
+			return nil, fmt.Errorf("at most 30 words can be requested per batch")
+		}
+		opts.Count = len(opts.Words)
+	}
 	if opts.Count < 1 || opts.Count > 30 {
 		return nil, fmt.Errorf("count must be between 1 and 30")
 	}
 	if strings.TrimSpace(opts.OutDir) == "" {
 		return nil, fmt.Errorf("output directory is required")
+	}
+	for _, spec := range opts.Words {
+		if strings.TrimSpace(spec.Word) == "" {
+			return nil, fmt.Errorf("word list contains an empty word")
+		}
+		if spec.Tier < 0 || spec.Tier > 4 {
+			return nil, fmt.Errorf("word %q has an invalid tier", spec.Word)
+		}
 	}
 
 	idx, err := st.ContentIndex(ctx, opts.Type)
@@ -60,7 +89,10 @@ func Run(ctx context.Context, llm LLM, st *store.Store, opts Options) (*Result, 
 		return nil, fmt.Errorf("read existing content: %w", err)
 	}
 	ask := min(opts.Count+3, 60)
-	raw, err := llm.Generate(ctx, systemPrompt(opts.Type), userPrompt(opts.Type, ask, idx))
+	if wordsMode {
+		ask = opts.Count
+	}
+	raw, err := llm.Generate(ctx, systemPrompt(opts.Type, wordsMode), userPrompt(opts.Type, ask, idx, opts.Words))
 	if err != nil {
 		return nil, err
 	}
@@ -73,6 +105,11 @@ func Run(ctx context.Context, llm LLM, st *store.Store, opts Options) (*Result, 
 	accepted := make([]json.RawMessage, 0, opts.Count)
 	seenSlugs := map[string]bool{}
 	seenKeys := map[string]bool{}
+	requested := make(map[string]WordSpec, len(opts.Words))
+	for _, spec := range opts.Words {
+		requested[normalizeWord(spec.Word)] = spec
+	}
+	covered := map[string]bool{}
 	for _, item := range items {
 		if len(accepted) >= opts.Count {
 			break
@@ -81,6 +118,23 @@ func Run(ctx context.Context, llm LLM, st *store.Store, opts Options) (*Result, 
 		if err != nil {
 			res.Skipped++
 			continue
+		}
+		if wordsMode {
+			key := normalizeWord(entry.targetWord)
+			spec, ok := requested[key]
+			if !ok || covered[key] {
+				res.Skipped++
+				continue
+			}
+			if !containsExactWord(entry.context, spec.Word) {
+				res.Skipped++
+				continue
+			}
+			normalized, err = applyWordSpec(normalized, &entry, spec)
+			if err != nil {
+				res.Skipped++
+				continue
+			}
 		}
 		if idx.Slugs[entry.slug] || seenSlugs[entry.slug] {
 			res.Skipped++
@@ -98,9 +152,19 @@ func Run(ctx context.Context, llm LLM, st *store.Store, opts Options) (*Result, 
 		seenSlugs[entry.slug] = true
 		seenKeys[key] = true
 		accepted = append(accepted, normalized)
+		if wordsMode {
+			covered[normalizeWord(entry.targetWord)] = true
+		}
 	}
 	res.Accepted = len(accepted)
 	res.Skipped = res.Generated - res.Accepted
+	if wordsMode {
+		for _, spec := range opts.Words {
+			if !covered[normalizeWord(spec.Word)] {
+				res.Missing = append(res.Missing, spec.Word)
+			}
+		}
+	}
 	if res.Accepted == 0 {
 		return res, errors.New("the model returned no new valid items; nothing was written")
 	}
@@ -124,6 +188,7 @@ type entry struct {
 	targetWord string
 	prompt     string
 	audioText  string
+	context    string
 }
 
 func normalizeItem(raw json.RawMessage, typ string) (json.RawMessage, entry, error) {
@@ -136,6 +201,16 @@ func normalizeItem(raw json.RawMessage, typ string) (json.RawMessage, entry, err
 	// exercise type.
 	m["type"] = typ
 	m["source"] = "generated"
+	// Models occasionally pad a field with a stray space. It is invisible in
+	// JSON but shows up in the exercise, so trim the text fields here.
+	for _, key := range []string{
+		"slug", "target_word", "context", "intended_meaning", "prompt",
+		"topic", "expected_length", "audio_text", "answer_text",
+	} {
+		if s, ok := m[key].(string); ok {
+			m[key] = strings.TrimSpace(s)
+		}
+	}
 	if _, ok := m["accepted_forms"]; !ok {
 		m["accepted_forms"] = []string{}
 	}
@@ -152,6 +227,7 @@ func normalizeItem(raw json.RawMessage, typ string) (json.RawMessage, entry, err
 		targetWord: stringField(m, "target_word"),
 		prompt:     stringField(m, "prompt"),
 		audioText:  stringField(m, "audio_text"),
+		context:    stringField(m, "context"),
 	}
 	prefix := map[string]string{
 		eval.TypeVocab: "vocab-", eval.TypeWriting: "writing-", eval.TypeListening: "listen-",
@@ -160,6 +236,67 @@ func normalizeItem(raw json.RawMessage, typ string) (json.RawMessage, entry, err
 		return nil, entry{}, fmt.Errorf("slug %q must start with %s", e.slug, prefix)
 	}
 	return normalized, e, nil
+}
+
+// normalizeWord gives a stable key for a requested target. Case and surrounding
+// space are the only differences the generator treats as the same word.
+func normalizeWord(s string) string {
+	return strings.ToLower(strings.TrimSpace(s))
+}
+
+// containsExactWord reports whether text contains word as a whole word. The
+// store validator uses a substring check, which would accept "formulate" for
+// "form"; generated vocabulary should use the exact target instead.
+func containsExactWord(text, word string) bool {
+	word = strings.TrimSpace(word)
+	if word == "" {
+		return false
+	}
+	pattern := `(?i)(^|[^a-z0-9])` + regexp.QuoteMeta(word) + `([^a-z0-9]|$)`
+	return regexp.MustCompile(pattern).MatchString(text)
+}
+
+// applyWordSpec replaces the model's tier and CEFR with the operator's values,
+// and gives the item a deterministic slug and target spelling. The slug can no
+// longer collide with another word in the list, and the stored target is the
+// exact form the context was checked against.
+func applyWordSpec(raw json.RawMessage, e *entry, spec WordSpec) (json.RawMessage, error) {
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return nil, err
+	}
+	slug := "vocab-" + slugifyWord(spec.Word)
+	m["slug"] = slug
+	m["target_word"] = spec.Word
+	if spec.Tier > 0 {
+		m["tier"] = spec.Tier
+	}
+	if spec.CEFR != "" {
+		m["cefr"] = spec.CEFR
+	}
+	e.slug = slug
+	e.targetWord = spec.Word
+	return json.Marshal(m)
+}
+
+func slugifyWord(word string) string {
+	var b strings.Builder
+	dash := false
+	for _, r := range strings.ToLower(strings.TrimSpace(word)) {
+		switch {
+		case (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9'):
+			b.WriteRune(r)
+			dash = false
+		case r == '\'':
+			// Drop apostrophes rather than turning them into a separator.
+		case r == '-' || r == ' ':
+			if b.Len() > 0 && !dash {
+				b.WriteByte('-')
+				dash = true
+			}
+		}
+	}
+	return strings.Trim(b.String(), "-")
 }
 
 func contentKey(e entry) string {
@@ -229,7 +366,7 @@ func writeBatch(dir, typ string, items []json.RawMessage) (string, error) {
 	return path, nil
 }
 
-func systemPrompt(typ string) string {
+func systemPrompt(typ string, fixedTargets bool) string {
 	common := `You generate original IELTS Academic practice material for one learner. This is not official IELTS content and must never be described as official. Return ONLY a JSON array of objects. No markdown, no commentary, no wrapper object.
 
 Every object must have these fields: slug, type, prompt, topic, cefr, tier, source.
@@ -251,6 +388,17 @@ Content rules:
 
 	switch typ {
 	case eval.TypeVocab:
+		if fixedTargets {
+			return common + `
+
+This batch is VOCABULARY IN CONTEXT with a fixed target list. The user message lists the target words. Each object also needs:
+- context: one natural sentence that contains the exact target word.
+- target_word: the target exactly as written in the list.
+- intended_meaning: a short, precise definition of the word as used in the context.
+- prompt: "Explain what \"WORD\" means in this sentence, using your own words."
+
+Write exactly one item for each target word. Do not add, skip, rename or inflect a target. Use the tier and CEFR shown for that word. Vary the topics and make the context clear enough to infer the meaning. Before returning an item, read the context once and check that it is grammatical and natural, and that the target word is used in the correct form and meaning.`
+		}
 		return common + `
 
 This batch is VOCABULARY IN CONTEXT. Each object also needs:
@@ -294,9 +442,30 @@ Listening rules:
 	}
 }
 
-func userPrompt(typ string, count int, idx *store.ContentIndex) string {
+func userPrompt(typ string, count int, idx *store.ContentIndex, words []WordSpec) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Generate exactly %d new %s items.\n", count, typ)
+	if len(words) > 0 {
+		fmt.Fprintf(&b, "Generate exactly %d new vocab items, one for each target word below.\n", count)
+		b.WriteString("Target words:\n")
+		for _, w := range words {
+			b.WriteString("- ")
+			b.WriteString(w.Word)
+			var hints []string
+			if w.Tier > 0 {
+				hints = append(hints, fmt.Sprintf("tier %d", w.Tier))
+			}
+			if w.CEFR != "" {
+				hints = append(hints, w.CEFR)
+			}
+			if len(hints) > 0 {
+				fmt.Fprintf(&b, " (%s)", strings.Join(hints, ", "))
+			}
+			b.WriteByte('\n')
+		}
+		b.WriteString("Every target must appear exactly once as target_word and in its context. Do not add other items.\n")
+	} else {
+		fmt.Fprintf(&b, "Generate exactly %d new %s items.\n", count, typ)
+	}
 	if len(idx.Keys) > 0 {
 		keys := make([]string, 0, len(idx.Keys))
 		for k := range idx.Keys {
