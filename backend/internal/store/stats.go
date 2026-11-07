@@ -29,11 +29,24 @@ type Stats struct {
 	Trend                  Trend           `json:"trend"`
 	Rewrites               RewriteStats    `json:"rewrites"`
 	SRS                    SRSStats        `json:"srs"`
+	ListeningSRS           *ListeningSRS   `json:"listening_srs,omitempty"`
 }
 
 // SRSStats describes the vocabulary repetition schedule. "Mastered" means box
 // 5, the last box, not a claim of perfect knowledge.
 type SRSStats struct {
+	Tracked   int        `json:"tracked"`
+	DueNow    int        `json:"due_now"`
+	NewToday  int        `json:"new_today"`
+	NewPerDay int        `json:"new_per_day"`
+	Boxes     []BoxCount `json:"boxes"`
+	Mastered  int        `json:"mastered"`
+	NextDueAt *time.Time `json:"next_due_at,omitempty"`
+}
+
+// ListeningSRS describes the dictation repetition schedule. It is tracked
+// separately from vocabulary so the two do not share a daily cap or a queue.
+type ListeningSRS struct {
 	Tracked   int        `json:"tracked"`
 	DueNow    int        `json:"due_now"`
 	NewToday  int        `json:"new_today"`
@@ -103,7 +116,7 @@ const (
 	categoryWindowSz = 10
 )
 
-func (s *Store) Stats(ctx context.Context, loc *time.Location, now time.Time, newPerDay int) (*Stats, error) {
+func (s *Store) Stats(ctx context.Context, loc *time.Location, now time.Time, newPerDay int, newListeningPerDay int) (*Stats, error) {
 	st := &Stats{ByType: []TypeStats{}, TopCategories: []CategoryStat{}, Recent: []RecentAttempt{}}
 
 	if err := s.db.QueryRowContext(ctx, `
@@ -111,8 +124,7 @@ SELECT count(*) FILTER (WHERE a.parent_attempt_id IS NULL),
        count(*) FILTER (WHERE a.parent_attempt_id IS NOT NULL),
        count(*) FILTER (WHERE a.status = 'evaluated'),
        count(*) FILTER (WHERE a.status = 'failed')
-FROM attempts a JOIN exercises e ON e.id = a.exercise_id
-WHERE e.type <> 'listening'`).Scan(&st.Totals.FirstAttempts, &st.Totals.Rewrites, &st.Totals.Evaluated, &st.Totals.Failed); err != nil {
+FROM attempts a JOIN exercises e ON e.id = a.exercise_id`).Scan(&st.Totals.FirstAttempts, &st.Totals.Rewrites, &st.Totals.Evaluated, &st.Totals.Failed); err != nil {
 		return nil, err
 	}
 
@@ -120,7 +132,7 @@ WHERE e.type <> 'listening'`).Scan(&st.Totals.FirstAttempts, &st.Totals.Rewrites
 	rows, err := s.db.QueryContext(ctx, `
 SELECT e.type, a.verdict, count(*)
 FROM attempts a JOIN exercises e ON e.id = a.exercise_id
-WHERE a.status = 'evaluated' AND a.parent_attempt_id IS NULL AND e.type <> 'listening'
+WHERE a.status = 'evaluated' AND a.parent_attempt_id IS NULL
 GROUP BY e.type, a.verdict`)
 	if err != nil {
 		return nil, err
@@ -146,7 +158,7 @@ GROUP BY e.type, a.verdict`)
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	for _, t := range []string{"vocab", "writing"} {
+	for _, t := range []string{"vocab", "writing", "listening"} {
 		if ts, ok := byType[t]; ok {
 			st.ByType = append(st.ByType, *ts)
 		}
@@ -167,7 +179,50 @@ GROUP BY e.type, a.verdict`)
 	if err := s.fillSRS(ctx, st, loc, now, newPerDay); err != nil {
 		return nil, err
 	}
+	if err := s.fillListeningSRS(ctx, st, loc, now, newListeningPerDay); err != nil {
+		return nil, err
+	}
 	return st, nil
+}
+
+func (s *Store) fillListeningSRS(ctx context.Context, st *Stats, loc *time.Location, now time.Time, newPerDay int) error {
+	srs := &ListeningSRS{NewPerDay: newPerDay, Boxes: make([]BoxCount, 5)}
+	st.ListeningSRS = srs
+	for i := range srs.Boxes {
+		srs.Boxes[i].Box = i + 1
+	}
+
+	n := now.In(loc)
+	dayStart := time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, loc)
+	var nextDue sql.NullTime
+	if err := s.db.QueryRowContext(ctx, `
+SELECT count(*),
+       count(*) FILTER (WHERE due_at <= $1),
+       count(*) FILTER (WHERE created_at >= $2),
+       count(*) FILTER (WHERE box >= 5),
+       min(due_at) FILTER (WHERE due_at > $1)
+FROM listening_review_state`, now, dayStart).Scan(&srs.Tracked, &srs.DueNow, &srs.NewToday, &srs.Mastered, &nextDue); err != nil {
+		return err
+	}
+	if nextDue.Valid {
+		srs.NextDueAt = &nextDue.Time
+	}
+
+	rows, err := s.db.QueryContext(ctx, `SELECT box, count(*) FROM listening_review_state GROUP BY box`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var box, count int
+		if err := rows.Scan(&box, &count); err != nil {
+			return err
+		}
+		if box >= 1 && box <= len(srs.Boxes) {
+			srs.Boxes[box-1].Count = count
+		}
+	}
+	return rows.Err()
 }
 
 func (s *Store) fillSRS(ctx context.Context, st *Stats, loc *time.Location, now time.Time, newPerDay int) error {
@@ -217,7 +272,7 @@ FROM review_state`, now, dayStart).Scan(&srs.Tracked, &srs.DueNow, &srs.NewToday
 func (s *Store) fillDaily(ctx context.Context, st *Stats, loc *time.Location, now time.Time) error {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT a.created_at FROM attempts a JOIN exercises e ON e.id = a.exercise_id
-WHERE a.status = 'evaluated' AND a.created_at >= $1 AND e.type <> 'listening'`, now.AddDate(0, 0, -streakLookback-1))
+WHERE a.status = 'evaluated' AND a.created_at >= $1`, now.AddDate(0, 0, -streakLookback-1))
 	if err != nil {
 		return err
 	}
@@ -293,7 +348,7 @@ func (s *Store) fillRecent(ctx context.Context, st *Stats) error {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT a.created_at, e.type, a.verdict
 FROM attempts a JOIN exercises e ON e.id = a.exercise_id
-WHERE a.status = 'evaluated' AND a.parent_attempt_id IS NULL AND e.type <> 'listening'
+WHERE a.status = 'evaluated' AND a.parent_attempt_id IS NULL
 ORDER BY a.created_at DESC, a.id
 LIMIT $1`, recentListSize)
 	if err != nil {

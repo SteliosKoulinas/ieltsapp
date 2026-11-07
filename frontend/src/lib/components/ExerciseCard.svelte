@@ -1,9 +1,16 @@
 <script lang="ts">
 	import type { Exercise } from '#lib/api';
 	import { typeLabel } from '#lib/labels';
+	import { kindLabel } from '#lib/speech';
 	import { card, muted, small } from '#lib/ui';
 
 	let { exercise }: { exercise: Exercise } = $props();
+
+	const kind = $derived(
+		exercise.type === 'listening' && exercise.listening_kind
+			? (kindLabel[exercise.listening_kind] ?? exercise.listening_kind)
+			: ''
+	);
 
 	function escapeRegExp(s: string): string {
 		return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -23,11 +30,11 @@
 	<p class={`${small} ${muted} mb-3 flex flex-wrap gap-[0.4rem]`}>
 		{#if exercise.mode}
 			<span class="font-bold text-neutral-900 dark:text-neutral-100"
-				>{exercise.mode === 'review' ? 'Review' : 'New word'}</span
+				>{exercise.mode === 'review' ? 'Review' : exercise.type === 'vocab' ? 'New word' : 'New'}</span
 			>
 			<span aria-hidden="true">·</span>
 		{/if}
-		<span>{typeLabel[exercise.type]}</span>
+		<span>{typeLabel[exercise.type]}{kind ? ` · ${kind}` : ''}</span>
 		<span aria-hidden="true">·</span>
 		<span>{exercise.topic}</span>
 		<span aria-hidden="true">·</span>

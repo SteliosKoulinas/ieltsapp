@@ -25,7 +25,7 @@ import (
 func runGenerate(args []string, log *slog.Logger) int {
 	fs := flag.NewFlagSet("generate", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	typ := fs.String("type", "", "vocab or writing")
+	typ := fs.String("type", "", "vocab, writing or listening")
 	count := fs.Int("count", 10, "number of new items to keep (1 to 30)")
 	out := fs.String("out", "", "batch directory (default: <CONTENT_DIR>/batches)")
 	wordsFile := fs.String("words", "", "vocabulary target file: word<TAB>tier<TAB>cefr per line")
@@ -40,8 +40,8 @@ func runGenerate(args []string, log *slog.Logger) int {
 		fmt.Fprintln(os.Stderr, "generate: -thinking must be -1 or between 0 and 32768")
 		return 2
 	}
-	if *typ != eval.TypeVocab && *typ != eval.TypeWriting {
-		fmt.Fprintln(os.Stderr, "generate: -type must be vocab or writing")
+	if *typ != eval.TypeVocab && *typ != eval.TypeWriting && *typ != eval.TypeListening {
+		fmt.Fprintln(os.Stderr, "generate: -type must be vocab, writing or listening")
 		fs.Usage()
 		return 2
 	}
@@ -85,6 +85,10 @@ func runGenerate(args []string, log *slog.Logger) int {
 	// even if the generator is run before the API has ever started.
 	if _, err := st.Seed(ctx); err != nil {
 		log.Error("seeding failed", "err", err)
+		return 1
+	}
+	if _, err := st.SeedListening(ctx); err != nil {
+		log.Error("listening seeding failed", "err", err)
 		return 1
 	}
 	for _, path := range []string{cfg.SeedFile, cfg.SeedDir} {

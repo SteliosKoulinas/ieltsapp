@@ -1,21 +1,22 @@
 #!/usr/bin/env bash
-# Generates new vocabulary or writing material once, on demand. Nothing runs on
-# a schedule. Run from the ielts-app folder:
+# Generates new vocabulary, writing or listening material once, on demand.
+# Nothing runs on a schedule. Run from the ielts-app folder:
 #
 #   bash scripts/generate-content.sh vocab 10
 #   bash scripts/generate-content.sh writing 5
+#   bash scripts/generate-content.sh listening 10
 #
-# The count is optional: vocab defaults to 10 and writing to 5.
+# The count is optional: vocab defaults to 10, writing to 5 and listening to 10.
 # Environment: MODEL (default gemini-3.5-flash), THINKING (default 0, off).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 usage() {
   cat <<'EOT'
-Usage: bash scripts/generate-content.sh <vocab|writing> [count]
+Usage: bash scripts/generate-content.sh <vocab|writing|listening> [count]
 
   count  how many new items to keep, from 1 to 30
-         (default: vocab 10, writing 5)
+         (default: vocab 10, writing 5, listening 10)
 
 The generator calls Gemini, validates the output, drops duplicates, writes a
 batch file under content/batches/, and inserts the accepted items into the
@@ -46,8 +47,11 @@ case "$TYPE" in
   writing)
     COUNT="${COUNT:-5}"
     ;;
+  listening)
+    COUNT="${COUNT:-10}"
+    ;;
   *)
-    echo "generate-content: type must be vocab or writing." >&2
+    echo "generate-content: type must be vocab, writing or listening." >&2
     usage >&2
     exit 2
     ;;

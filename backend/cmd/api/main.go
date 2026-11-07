@@ -55,6 +55,12 @@ func main() {
 		log.Error("seeding failed", "err", err)
 		os.Exit(1)
 	}
+	listeningAdded, err := st.SeedListening(ctx)
+	if err != nil {
+		log.Error("listening seeding failed", "err", err)
+		os.Exit(1)
+	}
+	added += listeningAdded
 	if cfg.SeedFile != "" {
 		n, err := st.SeedFile(ctx, cfg.SeedFile)
 		switch {
@@ -84,7 +90,7 @@ func main() {
 	log.Info("database ready", "new_exercises", added)
 
 	evaluator := eval.NewService(eval.NewClient(cfg.GeminiAPIKey, cfg.GeminiModel, cfg.GeminiBaseURL))
-	api := httpapi.New(st, evaluator, cfg.GeminiModel, cfg.EvalRatePerMinute, cfg.NewVocabPerDay, log)
+	api := httpapi.New(st, evaluator, cfg.GeminiModel, cfg.EvalRatePerMinute, cfg.NewVocabPerDay, cfg.NewListeningPerDay, log)
 
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,

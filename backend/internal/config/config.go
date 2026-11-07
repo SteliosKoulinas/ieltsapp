@@ -20,6 +20,9 @@ type Config struct {
 	// NewVocabPerDay is how many new vocabulary exercises are introduced per
 	// local day. Due reviews are always shown, whatever this number is.
 	NewVocabPerDay int
+	// NewListeningPerDay caps new dictation items per local day. It is separate
+	// from vocabulary, so the two do not compete for the same allowance.
+	NewListeningPerDay int
 	// SeedFile is an optional extra JSON batch loaded at startup.
 	SeedFile string
 	// SeedDir is an optional directory of JSON batches loaded at startup.
@@ -40,16 +43,17 @@ func Load() (Config, error) {
 	LoadDotEnv(".env", "../.env")
 
 	cfg := Config{
-		GeminiAPIKey:      os.Getenv("GEMINI_API_KEY"),
-		GeminiModel:       os.Getenv("GEMINI_MODEL"),
-		GeminiBaseURL:     os.Getenv("GEMINI_BASE_URL"),
-		DatabaseURL:       os.Getenv("DATABASE_URL"),
-		Port:              os.Getenv("PORT"),
-		EvalRatePerMinute: 10,
-		NewVocabPerDay:    0,
-		SeedFile:          os.Getenv("SEED_FILE"),
-		SeedDir:           os.Getenv("SEED_DIR"),
-		ContentDir:        os.Getenv("CONTENT_DIR"),
+		GeminiAPIKey:       os.Getenv("GEMINI_API_KEY"),
+		GeminiModel:        os.Getenv("GEMINI_MODEL"),
+		GeminiBaseURL:      os.Getenv("GEMINI_BASE_URL"),
+		DatabaseURL:        os.Getenv("DATABASE_URL"),
+		Port:               os.Getenv("PORT"),
+		EvalRatePerMinute:  10,
+		NewVocabPerDay:     0,
+		NewListeningPerDay: 0,
+		SeedFile:           os.Getenv("SEED_FILE"),
+		SeedDir:            os.Getenv("SEED_DIR"),
+		ContentDir:         os.Getenv("CONTENT_DIR"),
 	}
 	if cfg.ContentDir == "" {
 		cfg.ContentDir = "content"
@@ -67,6 +71,13 @@ func Load() (Config, error) {
 			return cfg, errors.New("NEW_VOCAB_PER_DAY must be a number between 0 and 100 (0 disables the limit)")
 		}
 		cfg.NewVocabPerDay = n
+	}
+	if v := os.Getenv("NEW_LISTENING_PER_DAY"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 0 || n > 100 {
+			return cfg, errors.New("NEW_LISTENING_PER_DAY must be a number between 0 and 100 (0 disables the limit)")
+		}
+		cfg.NewListeningPerDay = n
 	}
 	if cfg.Port == "" {
 		cfg.Port = "8080"

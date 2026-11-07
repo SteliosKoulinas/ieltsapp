@@ -21,14 +21,16 @@ project folder:
 ```bash
 bash scripts/generate-content.sh vocab 10
 bash scripts/generate-content.sh writing 5
+bash scripts/generate-content.sh listening 10
 ```
 
-The count is optional: vocabulary defaults to 10 and writing to 5. The script is
-a thin wrapper around the same command:
+The count is optional: vocabulary and listening default to 10 and writing to 5.
+The script is a thin wrapper around the same command:
 
 ```bash
 docker compose run --rm --user root api generate -type vocab -count 10
 docker compose run --rm --user root api generate -type writing -count 5
+docker compose run --rm --user root api generate -type listening -count 10
 ```
 
 - `-count` is how many **new** valid items to keep, from 1 to 30. The model is
@@ -95,13 +97,46 @@ Every item needs `slug`, `type`, `topic`, `cefr`, `tier` and `source`. `tier` is
 ]
 ```
 
+### Listening
+
+```json
+[
+  {
+    "slug": "listen-numeric-phone-1",
+    "type": "listening",
+    "listening_mode": "numeric",
+    "listening_kind": "phone",
+    "audio_text": "oh two oh, seven nine four six, oh one two three",
+    "answer_text": "020 7946 0123",
+    "accepted_forms": ["02079460123", "0207 946 0123"],
+    "prompt": "Type the phone number you hear. Digits are fine.",
+    "topic": "housing",
+    "cefr": "B1",
+    "tier": 1,
+    "source": "generated"
+  }
+]
+```
+
+`audio_text` is spoken by the browser, so numeric items must spell digits and
+symbols out as words; the validator rejects digits, `£`, `$`, `€` and `%` in it.
+`answer_text` is the reference transcript used for evaluation and is never sent
+to the browser before the answer is submitted. `accepted_forms` lists other
+correct renderings, mainly for numbers. `listening_mode` is `text` or `numeric`:
+
+- `text` kinds: `word`, `phrase`, `sentence`
+- `numeric` kinds: `phone`, `address`, `price`, `date`, `time`, `postcode`,
+  `reference`, `quantity`, `percentage`, `distance`, `weight`, `duration`, `room`
+
 ## Rules checked before insertion
 
 - unique, lowercase `slug` using letters, digits and hyphens
-- `type` is `vocab` or `writing`
+- `type` is `vocab`, `writing` or `listening`
 - `cefr` is `A2`, `B1`, `B2` or `C1`
 - `topic` is not empty
 - no em dash (U+2014) in any text field
 - no claim that the material is "official IELTS" content
 - for `vocab`, `context` contains the exact `target_word`
 - for `writing`, `prompt` is not empty
+- for `listening`, `audio_text` and `answer_text` are not empty, the mode and
+  kind match, and a numeric `audio_text` spells numbers out in words

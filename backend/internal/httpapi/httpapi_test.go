@@ -54,8 +54,11 @@ func newEnv(t *testing.T, perMinute int) *env {
 	if _, err := st.Seed(context.Background()); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := st.SeedListening(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 	ev := &fakeEvaluator{}
-	api := httpapi.New(st, ev, "test-model", perMinute, 8, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	api := httpapi.New(st, ev, "test-model", perMinute, 8, 8, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	return &env{t: t, h: api.Handler(), ev: ev, st: st}
 }
 
@@ -148,6 +151,90 @@ func TestNextExercise(t *testing.T) {
 func jsonNum(v any) string {
 	raw, _ := json.Marshal(v)
 	return string(raw)
+}
+
+func TestListeningExerciseAndSubmission(t *testing.T) {
+	e := newEnv(t, 60)
+
+	code, ex := e.do("GET", "/api/exercises/next?type=listening&mode=text", nil)
+	if code != 200 {
+		t.Fatalf("listening exercise: %d %v", code, ex)
+	}
+	if ex["type"] != "listening" || ex["listening_mode"] != "text" {
+		t.Fatalf("wrong exercise: %v", ex)
+	}
+	if ex["audio_text"] == nil || ex["audio_text"] == "" {
+		t.Error("the browser needs audio_text to speak the recording")
+	}
+	if _, leaked := ex["answer_text"]; leaked {
+		t.Error("the reference transcript must never reach the browser before submitting")
+	}
+	if _, leaked := ex["accepted_forms"]; leaked {
+		t.Error("accepted forms must never reach the browser before submitting")
+	}
+
+	code, res := e.do("POST", "/api/attempts", map[string]any{
+		"id": id1, "exercise_id": ex["id"], "answer": "allocate", "duration_ms": 4200, "replays": 1,
+	})
+	if code != 200 || res["status"] != "evaluated" {
+		t.Fatalf("listening submit: %d %v", code, res)
+	}
+	if e.ev.last.Type != "listening" || e.ev.last.ExpectedText == "" || e.ev.last.ListeningMode != "text" {
+		t.Errorf("the evaluator needs the reference transcript and mode: %+v", e.ev.last)
+	}
+	if len(e.ev.last.AcceptedForms) == 0 && e.ev.last.Answer != "allocate" {
+		t.Errorf("evaluation request: %+v", e.ev.last)
+	}
+
+	// The attempt appears in history and feeds the separate listening schedule.
+	code, list := e.do("GET", "/api/attempts", nil)
+	if code != 200 || list["total"].(float64) != 1 {
+		t.Errorf("listening history: %d %v", code, list)
+	}
+	code, st := e.do("GET", "/api/stats?tz=UTC", nil)
+	ls, ok := st["listening_srs"].(map[string]any)
+	if code != 200 || !ok || ls["tracked"].(float64) != 1 {
+		t.Errorf("listening schedule stats: %d %v", code, st["listening_srs"])
+	}
+
+	// Numeric mode is a separate pool, and invalid parameters are rejected.
+	if code, num := e.do("GET", "/api/exercises/next?type=listening&mode=numeric", nil); code != 200 || num["listening_mode"] != "numeric" {
+		t.Errorf("numeric listening: %d %v", code, num)
+	}
+	for _, path := range []string{
+		"/api/exercises/next?type=listening",
+		"/api/exercises/next?type=listening&mode=wrong",
+	} {
+		if code, body := e.do("GET", path, nil); code != 400 {
+			t.Errorf("%s should be 400, got %d %v", path, code, body)
+		}
+	}
+}
+
+func TestListeningAttemptValidation(t *testing.T) {
+	e := newEnv(t, 60)
+	_, ex := e.do("GET", "/api/exercises/next?type=listening&mode=text", nil)
+	base := func() map[string]any {
+		return map[string]any{"id": id1, "exercise_id": ex["id"], "answer": "allocate"}
+	}
+	for _, tc := range []struct {
+		name string
+		body map[string]any
+	}{
+		{"duration too short", func() map[string]any { m := base(); m["duration_ms"] = 10; return m }()},
+		{"duration too long", func() map[string]any { m := base(); m["duration_ms"] = 2_000_000; return m }()},
+		{"negative replays", func() map[string]any { m := base(); m["replays"] = -1; return m }()},
+		{"too many replays", func() map[string]any { m := base(); m["replays"] = 21; return m }()},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if code, res := e.do("POST", "/api/attempts", tc.body); code != 400 {
+				t.Errorf("want 400, got %d %v", code, res)
+			}
+		})
+	}
+	if e.ev.calls != 0 {
+		t.Errorf("invalid listening attempts must not reach the AI, calls=%d", e.ev.calls)
+	}
 }
 
 func TestSubmitAnswerEvaluatesStoresAndShowsInHistory(t *testing.T) {

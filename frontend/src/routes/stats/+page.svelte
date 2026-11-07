@@ -185,6 +185,48 @@
 			{/if}
 		</section>
 
+		{#if stats.listening_srs}
+			{@const ls = stats.listening_srs}
+			<section class={card}>
+				<h2 class="mb-2 text-xl font-bold">Listening schedule</h2>
+				<p class={`${small} ${muted}`}>
+					Dictation has its own queue, separate from vocabulary. A recording you transcribe well
+					returns after a longer wait; a wrong transcription comes back after a few hours.
+				</p>
+				{#if ls.tracked === 0}
+					<p class={muted}>
+						No recordings are in the schedule yet. Answer a listening exercise to start.
+					</p>
+				{:else}
+					<div class="mb-3 grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] gap-3">
+						<div class={`${panel} flex flex-col`}>
+							<span class="text-[2rem] font-extrabold leading-[1.1]">{ls.due_now}</span>
+							<span class={`${small} ${muted}`}>due now</span>
+						</div>
+						<div class={`${panel} flex flex-col`}>
+							<span class="text-[2rem] font-extrabold leading-[1.1]"
+								>{ls.new_today}{ls.new_per_day > 0 ? ` / ${ls.new_per_day}` : ''}</span
+							>
+							<span class={`${small} ${muted}`}
+								>new today{ls.new_per_day > 0 ? '' : ' (no limit)'}</span
+							>
+						</div>
+						<div class={`${panel} flex flex-col`}>
+							<span class="text-[2rem] font-extrabold leading-[1.1]">{ls.tracked}</span>
+							<span class={`${small} ${muted}`}>recordings tracked</span>
+						</div>
+						<div class={`${panel} flex flex-col`}>
+							<span class="text-[2rem] font-extrabold leading-[1.1]">{ls.mastered}</span>
+							<span class={`${small} ${muted}`}>in the last box</span>
+						</div>
+					</div>
+					{#if ls.next_due_at}
+						<p class={`${small} ${muted}`}>Next review: {formatDateTime(ls.next_due_at)}.</p>
+					{/if}
+				{/if}
+			</section>
+		{/if}
+
 		<section class={card}>
 			<h2 class="mb-2 text-xl font-bold">How your first attempts went</h2>
 			<p class={`${small} ${muted}`}>

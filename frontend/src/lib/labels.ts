@@ -11,7 +11,8 @@ export const verdictOrder: Verdict[] = ['correct', 'mostly_correct', 'partially_
 
 export const typeLabel: Record<ExerciseType, string> = {
 	vocab: 'Vocabulary in context',
-	writing: 'Short writing'
+	writing: 'Short writing',
+	listening: 'Listening dictation'
 };
 
 const categories: Record<string, string> = {
@@ -26,7 +27,12 @@ const categories: Record<string, string> = {
 	linking: 'Linking ideas',
 	clarity: 'Clarity',
 	vocabulary_meaning: 'Word meaning',
-	noun_number: 'Singular and plural'
+	noun_number: 'Singular and plural',
+	listening_number: 'Number or unit',
+	listening_spelling: 'Spelling',
+	listening_word: 'Wrong word',
+	listening_omission: 'Something missing',
+	listening_extra: 'Something added'
 };
 
 export function categoryLabel(id: string): string {

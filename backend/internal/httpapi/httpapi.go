@@ -31,19 +31,20 @@ type Evaluator interface {
 }
 
 type Server struct {
-	store          *store.Store
-	eval           Evaluator
-	model          string
-	limiter        *limiter
-	newVocabPerDay int
-	log            *slog.Logger
-	now            func() time.Time
+	store              *store.Store
+	eval               Evaluator
+	model              string
+	limiter            *limiter
+	newVocabPerDay     int
+	newListeningPerDay int
+	log                *slog.Logger
+	now                func() time.Time
 }
 
-func New(st *store.Store, ev Evaluator, model string, evalsPerMinute, newVocabPerDay int, log *slog.Logger) *Server {
+func New(st *store.Store, ev Evaluator, model string, evalsPerMinute, newVocabPerDay, newListeningPerDay int, log *slog.Logger) *Server {
 	now := time.Now
 	return &Server{store: st, eval: ev, model: model, limiter: newLimiter(evalsPerMinute, now),
-		newVocabPerDay: newVocabPerDay, log: log, now: now}
+		newVocabPerDay: newVocabPerDay, newListeningPerDay: newListeningPerDay, log: log, now: now}
 }
 
 func (s *Server) Handler() http.Handler {
@@ -138,12 +139,19 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) nextExercise(w http.ResponseWriter, r *http.Request) {
 	typ := r.URL.Query().Get("type")
-	if typ != "" && typ != "any" && typ != eval.TypeVocab && typ != eval.TypeWriting {
-		writeErr(w, http.StatusBadRequest, "invalid_type", "type must be vocab, writing or any.")
+	mode := r.URL.Query().Get("mode")
+	if typ != "" && typ != "any" && typ != eval.TypeVocab && typ != eval.TypeWriting && typ != eval.TypeListening {
+		writeErr(w, http.StatusBadRequest, "invalid_type", "type must be vocab, writing, listening or any.")
 		return
 	}
 	if typ == "any" {
 		typ = ""
+	}
+	if typ == eval.TypeListening {
+		if mode != "text" && mode != "numeric" {
+			writeErr(w, http.StatusBadRequest, "invalid_mode", "listening mode must be text or numeric.")
+			return
+		}
 	}
 	var exclude int64
 	if v := r.URL.Query().Get("exclude"); v != "" {
@@ -170,12 +178,19 @@ func (s *Server) nextExercise(w http.ResponseWriter, r *http.Request) {
 	}
 	now := s.now().In(loc)
 	opts := store.ScheduleOptions{
-		Now:        now,
-		DayStart:   time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc),
-		NewPerDay:  s.newVocabPerDay,
-		UnseenOnly: unseen,
+		Now:                now,
+		DayStart:           time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc),
+		NewPerDay:          s.newVocabPerDay,
+		NewListeningPerDay: s.newListeningPerDay,
+		UnseenOnly:         unseen,
 	}
-	ex, err := s.store.NextExercise(r.Context(), typ, exclude, opts)
+	var ex *store.Exercise
+	var err error
+	if typ == eval.TypeListening {
+		ex, err = s.store.NextListening(r.Context(), mode, exclude, opts)
+	} else {
+		ex, err = s.store.NextExercise(r.Context(), typ, exclude, opts)
+	}
 	switch {
 	case errors.Is(err, store.ErrNoUnseen):
 		writeErr(w, http.StatusNotFound, "no_unseen",
@@ -183,11 +198,15 @@ func (s *Server) nextExercise(w http.ResponseWriter, r *http.Request) {
 		return
 	case errors.Is(err, store.ErrDailyLimit):
 		writeErr(w, http.StatusNotFound, "daily_limit_reached",
-			"You have reached the daily limit for new words. Due reviews are unaffected, and writing practice is still available.")
+			"You have reached the daily limit for new items. Due reviews are unaffected.")
 		return
 	case errors.Is(err, store.ErrNothingDue):
 		msg := "Nothing is due right now. Reviews return on their schedule."
-		if due, derr := s.store.NextDueAt(r.Context(), now); derr == nil && due != nil {
+		if typ == eval.TypeListening {
+			if due, derr := s.store.NextListeningDueAt(r.Context(), mode, now); derr == nil && due != nil {
+				msg = "Nothing is due right now. The next review is at " + due.In(loc).Format("2 Jan 15:04") + "."
+			}
+		} else if due, derr := s.store.NextDueAt(r.Context(), now); derr == nil && due != nil {
 			msg = "Nothing is due right now. The next review is at " + due.In(loc).Format("2 Jan 15:04") + "."
 		}
 		writeErr(w, http.StatusNotFound, "nothing_due", msg)
@@ -209,6 +228,9 @@ type attemptRequest struct {
 	ExerciseID      int64   `json:"exercise_id"`
 	Answer          string  `json:"answer"`
 	ParentAttemptID *string `json:"parent_attempt_id"`
+	// Listening only. Both are optional and ignored for other types.
+	DurationMS *int `json:"duration_ms"`
+	Replays    int  `json:"replays"`
 }
 
 type attemptResponse struct {
@@ -240,6 +262,14 @@ func (s *Server) createAttempt(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "invalid_answer", "The answer must be 1 to 1000 characters.")
 		return
 	}
+	if in.DurationMS != nil && (*in.DurationMS < 500 || *in.DurationMS > 900000) {
+		writeErr(w, http.StatusBadRequest, "invalid_duration", "duration_ms must be between 500 and 900000.")
+		return
+	}
+	if in.Replays < 0 || in.Replays > 20 {
+		writeErr(w, http.StatusBadRequest, "invalid_replays", "replays must be between 0 and 20.")
+		return
+	}
 	parentID := ""
 	if in.ParentAttemptID != nil && *in.ParentAttemptID != "" {
 		parentID = strings.ToLower(*in.ParentAttemptID)
@@ -259,10 +289,6 @@ func (s *Server) createAttempt(w http.ResponseWriter, r *http.Request) {
 		s.serverError(w, "get exercise", err)
 		return
 	}
-	if ex.Type == eval.TypeListening {
-		writeErr(w, http.StatusNotFound, "exercise_not_found", "That exercise is no longer available.")
-		return
-	}
 	if parentID != "" {
 		parentEx, err := s.store.AttemptExerciseID(ctx, parentID)
 		if errors.Is(err, store.ErrNotFound) || (err == nil && parentEx != ex.ID) {
@@ -278,6 +304,7 @@ func (s *Server) createAttempt(w http.ResponseWriter, r *http.Request) {
 	// Save the answer first, so it is never lost if the AI provider fails.
 	outcome, err := s.store.BeginAttempt(ctx, store.BeginParams{
 		ID: in.ID, ExerciseID: ex.ID, ParentID: parentID, Answer: in.Answer,
+		DurationMS: in.DurationMS, Replays: in.Replays,
 	})
 	if err != nil {
 		s.serverError(w, "begin attempt", err)
@@ -407,7 +434,7 @@ func (s *Server) stats(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "invalid_timezone", "tz must be an IANA time zone name such as Europe/Athens.")
 		return
 	}
-	st, err := s.store.Stats(r.Context(), loc, s.now(), s.newVocabPerDay)
+	st, err := s.store.Stats(r.Context(), loc, s.now(), s.newVocabPerDay, s.newListeningPerDay)
 	if err != nil {
 		s.serverError(w, "stats", err)
 		return

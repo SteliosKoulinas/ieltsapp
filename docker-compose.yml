@@ -27,6 +27,7 @@ services:
       GEMINI_MODEL: "${GEMINI_MODEL:?Set GEMINI_MODEL in .env}"
       EVAL_RATE_PER_MINUTE: ${EVAL_RATE_PER_MINUTE:-10}
       NEW_VOCAB_PER_DAY: ${NEW_VOCAB_PER_DAY:-0}
+      NEW_LISTENING_PER_DAY: ${NEW_LISTENING_PER_DAY:-0}
       SEED_FILE: /content/generated.json
       SEED_DIR: /content/batches
       CONTENT_DIR: /content

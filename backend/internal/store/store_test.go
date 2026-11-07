@@ -276,7 +276,7 @@ func TestStats(t *testing.T) {
 	_, _ = s.BeginAttempt(ctx, store.BeginParams{ID: failedID, ExerciseID: vocab.ID, Answer: "a"})
 	_ = s.FailAttempt(ctx, failedID, "provider_error")
 
-	st, err := s.Stats(ctx, time.UTC, now.Add(time.Hour), 8)
+	st, err := s.Stats(ctx, time.UTC, now.Add(time.Hour), 8, 8)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -335,18 +335,18 @@ func TestStatsTimeZoneAndStreakRules(t *testing.T) {
 	add(1, time.Date(2026, 10, 26, 22, 30, 0, 0, time.UTC))
 	now := time.Date(2026, 10, 27, 9, 0, 0, 0, time.UTC)
 
-	st, _ := s.Stats(ctx, athens, now, 8)
+	st, _ := s.Stats(ctx, athens, now, 8, 8)
 	if st.Daily[13].Date != "2026-10-27" || st.Daily[13].Count != 1 {
 		t.Errorf("Athens should count it on Oct 27: %+v", st.Daily[12:])
 	}
-	stUTC, _ := s.Stats(ctx, time.UTC, now, 8)
+	stUTC, _ := s.Stats(ctx, time.UTC, now, 8, 8)
 	if stUTC.Daily[13].Count != 0 || stUTC.Daily[12].Count != 1 {
 		t.Errorf("UTC should count it on Oct 26: %+v", stUTC.Daily[12:])
 	}
 
 	// No practice today yet but yesterday had some: the streak is not broken.
 	add(2, time.Date(2026, 10, 25, 10, 0, 0, 0, time.UTC))
-	st3, _ := s.Stats(ctx, time.UTC, time.Date(2026, 10, 27, 9, 0, 0, 0, time.UTC), 8)
+	st3, _ := s.Stats(ctx, time.UTC, time.Date(2026, 10, 27, 9, 0, 0, 0, time.UTC), 8, 8)
 	if st3.StreakDays != 2 {
 		t.Errorf("streak should count from yesterday: want 2, got %d", st3.StreakDays)
 	}
@@ -368,7 +368,7 @@ func TestStatsTrendNeedsTwentyAttempts(t *testing.T) {
 		_ = s.CompleteAttempt(ctx, id, ev(verdict), "m", "p")
 		_, _ = raw.Exec(`UPDATE attempts SET created_at = $2 WHERE id = $1`, id, now.Add(time.Duration(i)*time.Minute-time.Hour*3))
 	}
-	st, err := s.Stats(ctx, time.UTC, now.Add(time.Hour), 8)
+	st, err := s.Stats(ctx, time.UTC, now.Add(time.Hour), 8, 8)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -719,7 +719,7 @@ func TestStatsSRS(t *testing.T) {
 	if err := s.CompleteAttemptAt(ctx, id, ev("correct"), "m", "p", now); err != nil {
 		t.Fatal(err)
 	}
-	st, err := s.Stats(ctx, time.UTC, now, 8)
+	st, err := s.Stats(ctx, time.UTC, now, 8, 8)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -740,9 +740,111 @@ func TestStatsSRS(t *testing.T) {
 	if _, err := raw.Exec(`UPDATE review_state SET due_at = $1`, now.Add(-time.Hour)); err != nil {
 		t.Fatal(err)
 	}
-	st, _ = s.Stats(ctx, time.UTC, now, 8)
+	st, _ = s.Stats(ctx, time.UTC, now, 8, 8)
 	if st.SRS.DueNow != 1 {
 		t.Errorf("due now: %+v", st.SRS)
+	}
+}
+
+// Listening dictation must use its own queue and its own daily allowance. A
+// dictation item must never appear in vocabulary practice, and a vocabulary
+// answer must never touch the listening schedule.
+func TestListeningScheduleIsSeparate(t *testing.T) {
+	s, raw := storetest.NewWithDB(t)
+	ctx := context.Background()
+	if _, err := s.Seed(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.SeedListening(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	now := time.Date(2026, 10, 27, 9, 0, 0, 0, time.UTC)
+	opts := func(at time.Time) store.ScheduleOptions {
+		return store.ScheduleOptions{
+			Now:                at,
+			DayStart:           time.Date(at.Year(), at.Month(), at.Day(), 0, 0, 0, 0, time.UTC),
+			NewPerDay:          8,
+			NewListeningPerDay: 1, // shared by text and numeric
+		}
+	}
+
+	ex, err := s.NextListening(ctx, "text", 0, opts(now))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ex.Type != "listening" || ex.Mode != "new" || ex.AudioText == "" || ex.AnswerText == "" {
+		t.Fatalf("listening exercise: %+v", ex)
+	}
+	req := ex.EvalRequest("whatever")
+	if req.ExpectedText == "" || req.ListeningMode != "text" {
+		t.Errorf("listening eval request: %+v", req)
+	}
+
+	// A correct transcription advances the listening boxes.
+	id := uuid(1)
+	if _, err := s.BeginAttempt(ctx, store.BeginParams{ID: id, ExerciseID: ex.ID, Answer: "a", Replays: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.CompleteAttemptAt(ctx, id, ev("correct"), "m", "p", now); err != nil {
+		t.Fatal(err)
+	}
+	var box int
+	var due time.Time
+	if err := raw.QueryRow(`SELECT box, due_at FROM listening_review_state WHERE exercise_id = $1`, ex.ID).
+		Scan(&box, &due); err != nil {
+		t.Fatal(err)
+	}
+	if box != 3 || !due.Equal(now.Add(3*24*time.Hour)) {
+		t.Errorf("listening schedule: box=%d due=%v", box, due)
+	}
+	var vocabRows int
+	if err := raw.QueryRow(`SELECT count(*) FROM review_state`).Scan(&vocabRows); err != nil {
+		t.Fatal(err)
+	}
+	if vocabRows != 0 {
+		t.Errorf("listening must not enter the vocabulary schedule, found %d rows", vocabRows)
+	}
+
+	// Listening never leaks into vocabulary practice.
+	for i := 0; i < 3; i++ {
+		w, err := s.NextExercise(ctx, "vocab", 0, opts(now))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if w.Type != "vocab" {
+			t.Fatalf("vocabulary practice returned a %s exercise", w.Type)
+		}
+	}
+
+	// The cap is shared by both listening modes and the review is not due yet.
+	if _, err := s.NextListening(ctx, "text", 0, opts(now.Add(time.Minute))); !errors.Is(err, store.ErrDailyLimit) {
+		t.Errorf("expected the shared daily cap, got %v", err)
+	}
+	if _, err := s.NextListening(ctx, "numeric", 0, opts(now.Add(time.Minute))); !errors.Is(err, store.ErrDailyLimit) {
+		t.Errorf("numeric mode should share the listening cap, got %v", err)
+	}
+
+	// Once due, the review wins even though the daily cap is reached.
+	review, err := s.NextListening(ctx, "text", 0, opts(now.Add(3*24*time.Hour+time.Minute)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if review.ID != ex.ID || review.Mode != "review" || review.DueAt == nil {
+		t.Fatalf("due listening review should come first: %+v", review)
+	}
+
+	// Skip asks for material the learner has never met.
+	skipped, err := s.NextListening(ctx, "text", 0, store.ScheduleOptions{Now: now, UnseenOnly: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if skipped.ID == ex.ID || skipped.Mode != "new" {
+		t.Fatalf("skip should return unseen dictation: %+v", skipped)
+	}
+
+	if _, err := s.NextListening(ctx, "bogus", 0, opts(now)); !errors.Is(err, store.ErrInvalidMode) {
+		t.Errorf("invalid mode: %v", err)
 	}
 }
 

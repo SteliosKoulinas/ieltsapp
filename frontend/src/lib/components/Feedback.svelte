@@ -5,7 +5,17 @@
 	import VerdictBadge from './VerdictBadge.svelte';
 
 	// The reference version is always a possible improved answer, never a score.
-	let { evaluation }: { evaluation: Evaluation } = $props();
+	let {
+		evaluation,
+		referenceTitle = 'A possible improved version',
+		referenceNote = 'Written by the AI as one example. Other wordings can be just as good.',
+		showReference = true
+	}: {
+		evaluation: Evaluation;
+		referenceTitle?: string;
+		referenceNote?: string;
+		showReference?: boolean;
+	} = $props();
 </script>
 
 <section aria-label="Feedback on your answer">
@@ -66,13 +76,13 @@
 		</div>
 	{/if}
 
-	<div class={`${card} border-[1.5px] border-neutral-900 dark:border-neutral-100`}>
-		<h3 class="mb-2 text-base font-bold">A possible improved version</h3>
-		<p class="mb-[0.4rem] text-[1.1rem] font-semibold">{evaluation.improved_version}</p>
-		<p class={`${small} ${muted}`}>
-			Written by the AI as one example. Other wordings can be just as good.
-		</p>
-	</div>
+	{#if showReference}
+		<div class={`${card} border-[1.5px] border-neutral-900 dark:border-neutral-100`}>
+			<h3 class="mb-2 text-base font-bold">{referenceTitle}</h3>
+			<p class="mb-[0.4rem] text-[1.1rem] font-semibold">{evaluation.improved_version}</p>
+			<p class={`${small} ${muted}`}>{referenceNote}</p>
+		</div>
+	{/if}
 
 	<p class={`${small} ${muted} mt-1`}>
 		This feedback is written by an AI and can contain mistakes. It is practice feedback, not an

@@ -77,7 +77,15 @@
 		</section>
 
 		{#if detail.status === 'evaluated' && detail.evaluation}
-			<Feedback evaluation={detail.evaluation} />
+			<Feedback
+				evaluation={detail.evaluation}
+				referenceTitle={detail.exercise.type === 'listening'
+					? 'What was said (reference transcript)'
+					: undefined}
+				referenceNote={detail.exercise.type === 'listening'
+					? 'This is exactly what the recording said. Case and punctuation do not matter.'
+					: undefined}
+			/>
 			{#if detail.reference_meaning}
 				<section class={card}>
 					<h3 class="mb-2 text-base font-bold">Reference meaning</h3>

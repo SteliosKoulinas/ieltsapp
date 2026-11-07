@@ -32,6 +32,10 @@ type BeginParams struct {
 	ExerciseID int64
 	ParentID   string // optional: the attempt this one rewrites
 	Answer     string
+	// Listening only: how long the learner took and how many times they
+	// replayed the recording. The database checks keep them in range.
+	DurationMS *int
+	Replays    int
 }
 
 // BeginAttempt saves the submitted answer BEFORE any AI call, so an answer is
@@ -45,10 +49,14 @@ func (s *Store) BeginAttempt(ctx context.Context, p BeginParams) (BeginOutcome, 
 	defer tx.Rollback()
 
 	parent := sql.NullString{String: p.ParentID, Valid: p.ParentID != ""}
+	var duration sql.NullInt64
+	if p.DurationMS != nil {
+		duration = sql.NullInt64{Int64: int64(*p.DurationMS), Valid: true}
+	}
 	res, err := tx.ExecContext(ctx, `
-INSERT INTO attempts (id, exercise_id, parent_attempt_id, answer, status)
-VALUES ($1, $2, $3, $4, 'pending')
-ON CONFLICT (id) DO NOTHING`, p.ID, p.ExerciseID, parent, p.Answer)
+INSERT INTO attempts (id, exercise_id, parent_attempt_id, answer, status, duration_ms, replays)
+VALUES ($1, $2, $3, $4, 'pending', $5, $6)
+ON CONFLICT (id) DO NOTHING`, p.ID, p.ExerciseID, parent, p.Answer, duration, p.Replays)
 	if err != nil {
 		return 0, err
 	}
@@ -134,7 +142,48 @@ WHERE id = $1 AND status = 'pending'`,
 	if err := updateReviewState(ctx, tx, id, ev.Verdict, now); err != nil {
 		return err
 	}
+	if err := updateListeningReviewState(ctx, tx, id, ev.Verdict, now); err != nil {
+		return err
+	}
 	return tx.Commit()
+}
+
+// updateListeningReviewState advances the dictation schedule for a first
+// attempt. It mirrors the vocabulary boxes but writes to its own table, so the
+// two schedules never share a queue or a daily cap.
+func updateListeningReviewState(ctx context.Context, tx *sql.Tx, attemptID, verdict string, now time.Time) error {
+	var exerciseID int64
+	var parent sql.NullString
+	var typ string
+	err := tx.QueryRowContext(ctx, `
+SELECT a.exercise_id, a.parent_attempt_id, e.type
+FROM attempts a JOIN exercises e ON e.id = a.exercise_id
+WHERE a.id = $1`, attemptID).Scan(&exerciseID, &parent, &typ)
+	if err != nil {
+		return err
+	}
+	if parent.Valid || typ != eval.TypeListening {
+		return nil
+	}
+
+	if _, err := tx.ExecContext(ctx, `
+INSERT INTO listening_review_state (exercise_id, box, due_at, created_at, updated_at)
+VALUES ($1, 1, $2, $2, $2)
+ON CONFLICT (exercise_id) DO NOTHING`, exerciseID, now); err != nil {
+		return err
+	}
+
+	var box, streak, lapses int
+	if err := tx.QueryRowContext(ctx, `
+SELECT box, streak, lapses FROM listening_review_state WHERE exercise_id = $1 FOR UPDATE`, exerciseID).
+		Scan(&box, &streak, &lapses); err != nil {
+		return err
+	}
+	box, due, streak, lapses := scheduleReview(box, streak, lapses, verdict, now)
+	_, err = tx.ExecContext(ctx, `
+UPDATE listening_review_state SET box = $2, due_at = $3, streak = $4, lapses = $5, last_verdict = $6, updated_at = $7
+WHERE exercise_id = $1`, exerciseID, box, due, streak, lapses, verdict, now)
+	return err
 }
 
 // updateReviewState advances the vocabulary schedule for a first attempt. A
@@ -287,7 +336,7 @@ SELECT a.id, a.parent_attempt_id, a.answer, a.status, a.evaluation, a.failure_co
        COALESCE(e.audio_text, ''), COALESCE(e.answer_text, ''), COALESCE(e.listening_mode, ''),
        COALESCE(e.listening_kind, ''), e.accepted_forms
 FROM attempts a JOIN exercises e ON e.id = a.exercise_id
-WHERE a.id = $1 AND e.type <> 'listening'`, id).Scan(&d.ID, &parent, &d.Answer, &d.Status, &evaluation, &failure, &d.CreatedAt,
+WHERE a.id = $1`, id).Scan(&d.ID, &parent, &d.Answer, &d.Status, &evaluation, &failure, &d.CreatedAt,
 		&ex.ID, &ex.Slug, &ex.Type, &ex.Context, &ex.Prompt, &ex.TargetWord,
 		&ex.IntendedMeaning, &ex.ExpectedLength, &criteria, &ex.Topic, &ex.CEFR,
 		&ex.AudioText, &ex.AnswerText, &ex.ListeningMode, &ex.ListeningKind, &accepted)
@@ -336,15 +385,13 @@ type AttemptSummary struct {
 func (s *Store) ListAttempts(ctx context.Context, limit, offset int) ([]AttemptSummary, int, error) {
 	var total int
 	if err := s.db.QueryRowContext(ctx, `
-SELECT count(*) FROM attempts a JOIN exercises e ON e.id = a.exercise_id
-WHERE e.type <> 'listening'`).Scan(&total); err != nil {
+SELECT count(*) FROM attempts a JOIN exercises e ON e.id = a.exercise_id`).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 	rows, err := s.db.QueryContext(ctx, `
 SELECT a.id, a.created_at, a.status, COALESCE(a.verdict, ''), a.parent_attempt_id IS NOT NULL,
        e.id, e.type, COALESCE(e.target_word, ''), COALESCE(e.context, e.prompt), left(a.answer, 200)
 FROM attempts a JOIN exercises e ON e.id = a.exercise_id
-WHERE e.type <> 'listening'
 ORDER BY a.created_at DESC, a.id
 LIMIT $1 OFFSET $2`, limit, offset)
 	if err != nil {

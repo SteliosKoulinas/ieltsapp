@@ -1,8 +1,10 @@
 // Typed client for the Go API. All requests go to the same origin under /api:
 // nginx proxies it in production and the Vite dev server proxies it in development.
 
-export type ExerciseType = 'vocab' | 'writing';
+export type ExerciseType = 'vocab' | 'writing' | 'listening';
 export type Verdict = 'correct' | 'mostly_correct' | 'partially_correct' | 'incorrect';
+
+export type ListeningMode = 'text' | 'numeric';
 
 export interface Exercise {
 	id: number;
@@ -14,7 +16,12 @@ export interface Exercise {
 	criteria?: string[];
 	topic: string;
 	cefr: string;
-	// Vocabulary only: "review" is a scheduled repetition, "new" a first exposure.
+	// Listening only. audio_text is what the browser should speak; the
+	// reference transcript is never sent before the answer is submitted.
+	audio_text?: string;
+	listening_mode?: ListeningMode;
+	listening_kind?: string;
+	// "review" is a scheduled repetition, "new" a first exposure.
 	mode?: 'review' | 'new';
 	due_at?: string;
 }
@@ -102,6 +109,15 @@ export interface Stats {
 		mastered: number;
 		next_due_at?: string;
 	};
+	listening_srs?: {
+		tracked: number;
+		due_now: number;
+		new_today: number;
+		new_per_day: number;
+		boxes: { box: number; count: number }[];
+		mastered: number;
+		next_due_at?: string;
+	};
 }
 
 export class ApiError extends Error {
@@ -144,18 +160,31 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-	nextExercise(type: 'any' | ExerciseType, excludeId?: number, tz?: string, unseen?: boolean) {
+	nextExercise(
+		type: 'any' | ExerciseType,
+		excludeId?: number,
+		tz?: string,
+		unseen?: boolean,
+		mode?: ListeningMode
+	) {
 		const q = new URLSearchParams({ type });
 		if (excludeId) q.set('exclude', String(excludeId));
 		if (tz) q.set('tz', tz);
 		if (unseen) q.set('unseen', '1');
+		if (mode) q.set('mode', mode);
 		return request<Exercise>(`/exercises/next?${q}`);
+	},
+	nextListening(mode: ListeningMode, excludeId?: number, tz?: string, unseen?: boolean) {
+		return api.nextExercise('listening', excludeId, tz, unseen, mode);
 	},
 	submitAttempt(body: {
 		id: string;
 		exercise_id: number;
 		answer: string;
 		parent_attempt_id?: string | null;
+		// Listening only.
+		duration_ms?: number;
+		replays?: number;
 	}) {
 		return request<AttemptResult>('/attempts', { method: 'POST', body: JSON.stringify(body) });
 	},

@@ -33,10 +33,13 @@ var ErrInvalidMode = errors.New("listening mode must be text or numeric")
 // for material the learner has never seen, ignoring the review schedule; the
 // skip button uses it.
 type ScheduleOptions struct {
-	Now        time.Time
-	DayStart   time.Time
-	NewPerDay  int
-	UnseenOnly bool
+	Now       time.Time
+	DayStart  time.Time
+	NewPerDay int
+	// NewListeningPerDay caps new dictation items per local day. It is separate
+	// from NewPerDay so listening and vocabulary never eat each other's budget.
+	NewListeningPerDay int
+	UnseenOnly         bool
 }
 
 // Exercise is shared content. Reference answers are never serialized to the
@@ -363,6 +366,27 @@ func (s *Store) NextListening(ctx context.Context, mode string, excludeID int64,
 	}
 	s.fillScheduleDefaults(&opts)
 
+	// Skipping asks for dictation material the learner has never met.
+	if opts.UnseenOnly {
+		row := s.db.QueryRowContext(ctx, `
+SELECT `+exerciseColumns+`
+FROM exercises e
+LEFT JOIN listening_review_state r ON r.exercise_id = e.id
+WHERE e.status = 'published' AND e.type = 'listening'
+  AND e.listening_mode = $1 AND r.exercise_id IS NULL
+ORDER BY (e.id = $2) ASC, e.tier ASC, random()
+LIMIT 1`, mode, excludeID)
+		e, err := scanExercise(row)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNoUnseen
+		}
+		if err != nil {
+			return nil, err
+		}
+		e.Mode = "new"
+		return e, nil
+	}
+
 	// 1. A due review of the requested mode.
 	row := s.db.QueryRowContext(ctx, `
 SELECT `+exerciseColumns+`, r.due_at
@@ -382,7 +406,7 @@ LIMIT 1`, opts.Now, excludeID, mode)
 
 	// 2. A new item, if today's listening allowance is not used up. The cap is
 	// shared by both modes; reviews are never capped.
-	if opts.NewPerDay > 0 {
+	if opts.NewListeningPerDay > 0 {
 		var introduced int
 		if err := s.db.QueryRowContext(ctx, `
 SELECT count(*)
@@ -391,7 +415,7 @@ JOIN exercises e ON e.id = r.exercise_id
 WHERE e.type = 'listening' AND r.created_at >= $1`, opts.DayStart).Scan(&introduced); err != nil {
 			return nil, err
 		}
-		if introduced >= opts.NewPerDay {
+		if introduced >= opts.NewListeningPerDay {
 			var hasNew bool
 			if err := s.db.QueryRowContext(ctx, `
 SELECT EXISTS (

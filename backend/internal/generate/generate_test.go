@@ -68,7 +68,7 @@ func TestRunVocabFiltersDuplicatesAndInvalidItems(t *testing.T) {
 	out := `[
 	  {"slug":"vocab-bad-context","context":"This sentence does not contain it.","target_word":"juxtapose","intended_meaning":"place side by side","topic":"art","cefr":"C1","tier":1},
 	  {"slug":"vocab-duplicate-word","context":"Governments allocate funds to schools.","target_word":"allocate","intended_meaning":"give out","topic":"education","cefr":"B2","tier":1},
-	  {"slug":"vocab-juxtapose","context":"The exhibition juxtaposes old maps with satellite images.","target_word":"juxtapose","intended_meaning":"place two things side by side to compare them","topic":"culture","cefr":"C1","tier":1},
+	  {"slug":"vocab-juxtapose","context":"The exhibition will juxtapose old maps with satellite images.","target_word":"juxtapose","intended_meaning":"place two things side by side to compare them","topic":"culture","cefr":"C1","tier":1},
 	  {"slug":"word-ubiquitous","context":"Smartphones are ubiquitous in modern life.","target_word":"ubiquitous","intended_meaning":"found everywhere","topic":"technology","cefr":"C1","tier":1},
 	  {"slug":"vocab-juxtapose-again","context":"The essay juxtaposes two arguments.","target_word":"juxtapose","intended_meaning":"compare side by side","topic":"education","cefr":"C1","tier":1},
 	  {"slug":"vocab-ubiquitous","context":"Smartphones are ubiquitous in modern life.","target_word":"ubiquitous","intended_meaning":"found everywhere","topic":"technology","cefr":"C1","tier":1}
@@ -196,7 +196,7 @@ func TestRunWordsUsesListedTargetsAndOverridesHints(t *testing.T) {
 	dir := t.TempDir()
 
 	out := `[
-	  {"slug":"vocab-juxtapose","context":"The exhibition juxtaposes old maps with satellite images.","target_word":"juxtapose","intended_meaning":"place two things side by side to compare them","topic":"culture","cefr":"B2","tier":1},
+	  {"slug":"vocab-juxtapose","context":"The exhibition will juxtapose old maps with satellite images.","target_word":"juxtapose","intended_meaning":"place two things side by side to compare them","topic":"culture","cefr":"B2","tier":1},
 	  {"slug":"vocab-ubiquitous","context":"Smartphones are ubiquitous in modern life.","target_word":"ubiquitous","intended_meaning":"found everywhere","topic":"technology","cefr":"C1","tier":4},
 	  {"slug":"vocab-tenacious","context":"She was tenacious in her search for evidence.","target_word":"tenacious","intended_meaning":"persistent","topic":"society","cefr":"C1","tier":1}
 	]`
@@ -279,7 +279,7 @@ func TestRunWordsReportsMissingAndRejectsInflection(t *testing.T) {
 
 	out := `[
 	  {"slug":"vocab-scrutinise","context":"The committee scrutinised the plan for two weeks.","target_word":"scrutinise","intended_meaning":"examine closely","topic":"work","cefr":"C1","tier":2},
-	  {"slug":"vocab-juxtapose","context":"The exhibition juxtaposes old maps with satellite images.","target_word":"juxtapose","intended_meaning":"place two things side by side to compare them","topic":"culture","cefr":"C1","tier":2}
+	  {"slug":"vocab-juxtapose","context":"The exhibition will juxtapose old maps with satellite images.","target_word":"juxtapose","intended_meaning":"place two things side by side to compare them","topic":"culture","cefr":"C1","tier":2}
 	]`
 	res, err := Run(ctx, fakeLLM{out: out}, st, Options{
 		Type:   eval.TypeVocab,

@@ -1,6 +1,8 @@
 # IELTS Practice
 
-A personal daily practice tool for IELTS Academic. There are two exercise types: Vocabulary in Context and Short Writing. Every answer is evaluated by Gemini, stored in PostgreSQL, and used to build your statistics.
+A personal daily practice tool for IELTS Academic. There are three exercise types: Vocabulary in Context, Short Writing and Listening Dictation. Every answer is evaluated by Gemini, stored in PostgreSQL, and used to build your statistics.
+
+Listening dictation is spoken by the browser's own speech engine (no audio files are stored). The app deliberately picks the most natural English voice installed on the device, starts at a slightly slower speed, and lets you choose the speed and voice. See [Listening dictation](#listening-dictation).
 
 ```text
 Browser -> host nginx (TLS) -> web (static SvelteKit build)
@@ -28,9 +30,10 @@ Stop the stack with `docker compose down`. Your data stays in the `pgdata` volum
 ## What to try
 
 1. **Practice**: choose Mixed, Vocabulary or Writing, write an answer, and press "Get feedback". `Ctrl` or `Cmd` + `Enter` submits.
-2. **Rewrite**: after feedback, press "Rewrite it in my own words". Your first answer and its feedback stay visible for reference.
+2. **Listening**: open the **Listening** tab, choose "Words and sentences" or "Numbers and details", press play, and type what you hear. You get three listens and can change the speed. Press Enter to check.
+3. **Rewrite**: after feedback, press "Rewrite it in my own words". Your first answer and its feedback stay visible for reference.
 3. **When the AI fails**: temporarily put a wrong `GEMINI_API_KEY` in `.env`, run `docker compose up -d api`, and submit an answer. You will see "Not evaluated yet", your text stays in the box, and the answer is saved. Fix the key, run the same command again, and press "Try again"; or open the answer from **History** and press "Evaluate this answer now". No duplicate attempt is created.
-4. **History**: every answer, with the full feedback and, for vocabulary, the reference meaning.
+4. **History**: every answer, with the full feedback and, for vocabulary, the reference meaning; for listening, the exact transcript.
 5. **Statistics**: see below.
 
 ## Statistics: what each number means
@@ -43,6 +46,7 @@ Stop the stack with `docker compose down`. Your data stays in the `pgdata` volum
 - **Failed evaluations** are not counted anywhere, but are reported separately.
 - **Vocabulary schedule**: each word sits in one of 5 boxes. A correct answer moves it up two boxes; a mostly correct answer moves it up one box. Both are at least 1 day away, so a word you know does not reappear in the same session. A partly correct answer moves down one box and returns within 1 day. A wrong answer restarts the word at box 1 and returns after 4 hours. The waiting times are 4 hours, 1 day, 3 days, 8 days, and 21 days. "Due now" means the word is waiting for review now. "New today" counts the new words you saw for the first time today. There is no daily limit by default.
 - **Priority order**: words have tiers 1 to 4. Tier 1 is the most useful vocabulary for B2/B2+ and IELTS Academic, and is introduced first. Reviews are not affected by tier: anything due comes before any new word.
+- **Listening schedule**: dictation has its own queue and its own boxes, kept separate from vocabulary. It follows the same waiting times and verdict rules. New recordings have their own daily cap (`NEW_LISTENING_PER_DAY`, unlimited by default) and the cap is shared by the two dictation modes. Listening attempts count towards the daily streak and the overall by-type table; listening mistakes use their own `listening_*` categories.
 
 ## Exposure and security
 
@@ -56,7 +60,7 @@ Stop the stack with `docker compose down`. Your data stays in the `pgdata` volum
 - There is no login. HTTPS encrypts the connection but is **not authentication**. Keep the site on a private network, or add authentication (basic auth, VPN or Tailscale) before exposing it to the internet.
 - The Gemini key exists only in the API container. It is never sent to the browser and never written to logs.
 - The server starts at most 10 evaluations per minute (`EVAL_RATE_PER_MINUTE`), so a browser loop cannot burn the daily quota.
-- New words are unlimited by default (`NEW_VOCAB_PER_DAY=0`). Set a positive value to cap new words per day in your own time zone. Due reviews are never limited.
+- New words are unlimited by default (`NEW_VOCAB_PER_DAY=0`). Set a positive value to cap new words per day in your own time zone. Due reviews are never limited. `NEW_LISTENING_PER_DAY` does the same for new dictation items, with its own counter.
 - Logs never contain the text of your answers.
 
 ## What is stored
@@ -110,6 +114,28 @@ See `content/README.md` for the format, examples, and the validation rules.
 - **Skip**: asks only for material you have never seen. It never returns a word from the review schedule. When no unseen material is left, it says so instead of repeating an old word; generate more content with the script above.
 - **Writing**: prompts you have never seen first, then the ones seen longest ago. Writing is not part of the spaced repetition schedule, so a prompt can eventually return after you have seen the whole bank.
 - **Mixed** prefers vocabulary and falls back to writing when no word is available. The previous exercise is avoided when there is another option.
+- **Listening** is its own page with its own pool: due dictation reviews first, then a new recording by tier. `text` (words, phrases, sentences) and `numeric` (phone, price, date, time, address and similar) are separate pools. Skip asks for a recording you have never heard.
+
+## Listening dictation
+
+The recording is produced by the **browser** with the Web Speech API; the API only stores the script. Nothing is downloaded from a third party and no audio files are kept.
+
+Voice quality depends on the operating system, so the page ranks the installed voices instead of using the browser default:
+
+1. neural/natural, enhanced or premium voices first;
+2. network voices over compact local ones;
+3. British English before American, Australian and other accents.
+
+The default speed is 0.8×, which is slower than the browser default that learners found too fast. You can switch between Slow (0.65×), Natural (0.8×) and Exam speed (1×), and pick another English voice from the dropdown. The chosen voice is remembered.
+
+For the most natural pronunciation, install an **enhanced** or **natural** English voice in your system settings:
+
+- **macOS**: System Settings → Accessibility → Spoken Content → System Voice → Manage Voices, and download an English voice such as "Ava (Premium)" or "Serena".
+- **Windows**: Settings → Time & Language → Speech → Add voices, then choose a "Natural" English (United Kingdom) voice.
+- **Android/iOS**: Settings → Accessibility → Spoken Content → Voices → English, and download a higher-quality voice.
+- **Chrome/Edge** also expose Google and Microsoft network voices, which sound natural without downloading anything.
+
+If the browser has no English voice at all, the page says so and the exercise can still be answered for feedback.
 
 ## Backup and restore
 
@@ -174,12 +200,13 @@ The frontend uses Tailwind CSS v4 through `@tailwindcss/vite`. Styling lives in 
 |---|---|---|
 | GET | `/api/health` | health, checks the database too |
 | GET | `/api/exercises/next?type=vocab\|writing\|any&exclude=ID&tz=YOUR_TIME_ZONE&unseen=1` | next vocabulary or writing exercise; `unseen=1` returns only material never seen before |
-| POST | `/api/attempts` | submit and evaluate (idempotent by `id`) |
+| GET | `/api/exercises/next?type=listening&mode=text\|numeric&exclude=ID&tz=YOUR_TIME_ZONE&unseen=1` | next dictation item; the response includes `audio_text` (for the browser to speak) but never the reference transcript |
+| POST | `/api/attempts` | submit and evaluate (idempotent by `id`); listening sends optional `duration_ms` and `replays` |
 | GET | `/api/attempts?limit=&offset=` | history |
 | GET | `/api/attempts/{id}` | one answer with full feedback |
 | GET | `/api/stats?tz=YOUR_TIME_ZONE` | statistics |
 
-**Spaced repetition** applies to vocabulary. Only the first answer to a word changes its box. Rewrites are extra practice and do not affect the schedule or the quality statistics.
+**Spaced repetition** applies to vocabulary and listening, each with its own table. Only the first answer to an item changes its box. Rewrites are extra practice and do not affect the schedule or the quality statistics. Listening feedback compares the transcription only (case and punctuation are ignored, digits and number words are equivalent, and `accepted_forms` cover other correct renderings) and always shows the exact transcript as the reference.
 
 **Submission flow**: the answer is saved before the AI is called, so it is never lost. If the provider fails, the same submission is retried with the same `id`, without duplicates or double evaluation. Feedback is validated (known fields, known categories, quotes that actually appear in your answer) before it is stored or shown.
 
@@ -195,7 +222,7 @@ backend/                  Go API
   cmd/api                 server
   cmd/evalcheck           live AI quality check
   internal/eval           prompts, Gemini client, validation, retry
-  internal/store          PostgreSQL: migrations, seed, selection, attempts, statistics
+  internal/store          PostgreSQL: migrations, seed (including 250 listening items), selection, attempts, statistics
   internal/httpapi        endpoints, rate limiter
   testdata/golden.json    sample answers
 frontend/                 SvelteKit (static build) + Tailwind CSS + nginx.conf
@@ -218,11 +245,11 @@ docker compose up -d --build
 
 ## What is and is not ready
 
-**Tested here:** the Go API against a real PostgreSQL 16, including database-backed integration tests for migrations, seeding, spaced repetition, attempts, statistics and the content generator. `go vet` and `npm run check` pass. The frontend was checked in Chromium against the real local backend and again on the deployed site: practice, history and statistics. The Docker images build and the Compose stack runs locally and on the Linux VM.
+**Tested here:** the Go API against a real PostgreSQL 16, including database-backed integration tests for migrations, seeding, spaced repetition, listening scheduling, attempts, statistics and the content generator. `go vet` and `npm run check` pass. The frontend was checked in Chromium against the real local backend and again on the deployed site: practice, listening, history and statistics. The Docker images build and the Compose stack runs locally and on the Linux VM.
 
 **Not tested here:** real Gemini feedback was not quality-checked with this exact build in the final check, and the automated tests use a fake local AI server. If something fails on `docker compose up --build`, send the error message.
 
-**The built-in bank** has 84 vocabulary and writing exercises (70 vocabulary, 14 writing). All of it was written by AI and has not been reviewed by a teacher. It is original practice material, **not official IELTS material**. CEFR levels are approximate. The tier-1 vocabulary was chosen as core academic and topic vocabulary at B2/B2+, based on research on vocabulary size and text coverage (roughly 3,500 to 4,000 word families for B2, 4,000 to 5,000 for comfortable IELTS Academic reading).
+**The built-in bank** has 84 vocabulary and writing exercises (70 vocabulary, 14 writing) plus 250 listening dictation items (110 text, 140 numeric). All of it was written by AI and has not been reviewed by a teacher. It is original practice material, **not official IELTS material**. CEFR levels are approximate. The tier-1 vocabulary was chosen as core academic and topic vocabulary at B2/B2+, based on research on vocabulary size and text coverage (roughly 3,500 to 4,000 word families for B2, 4,000 to 5,000 for comfortable IELTS Academic reading).
 
 **Not there yet:** accounts and guest mode, difficulty adaptation, weakness detection per concept for exercise selection, Anki import, an automatic content pipeline, and authentication for public deployment.
 
