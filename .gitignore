@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 
+# macOS metadata
+.DS_Store
+
 # build output
 /backend/bin/
 *.exe
