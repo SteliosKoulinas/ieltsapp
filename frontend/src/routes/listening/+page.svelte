@@ -48,9 +48,6 @@
 	let voiceError = $state<string | null>(null);
 	let speaking = $state(false);
 	let plays = $state(0);
-	// True once a playback was attempted, even if the device could not produce
-	// sound. It lets the learner answer instead of being trapped on the page.
-	let listenAttempted = $state(false);
 	let startedAt = $state<number | null>(null);
 	// Guards against a speech promise resolving after the exercise changed.
 	let speechSeq = $state(0);
@@ -72,9 +69,7 @@
 	const voiceInfo = $derived(describeVoice(chosenVoice));
 	const englishVoices = $derived(rankVoices(voices).slice(0, 12));
 	const playsLeft = $derived(Math.max(0, MAX_PLAYS - plays));
-	const canSubmit = $derived(
-		!submitting && answer.trim().length > 0 && !result && (!supported || listenAttempted)
-	);
+	const canSubmit = $derived(!submitting && answer.trim().length > 0 && !result);
 	const modeHint = $derived(modes.find((m) => m.value === mode)?.hint ?? '');
 
 	onMount(() => {
@@ -107,7 +102,6 @@
 		result = null;
 		submitError = null;
 		plays = 0;
-		listenAttempted = false;
 		startedAt = null;
 		elapsedMs = null;
 		speaking = false;
@@ -128,9 +122,6 @@
 			exercise = await api.nextListening(mode, exercise?.id, userTimeZone());
 			await tick();
 			answerInput?.focus();
-			// After the first manual play, later items can start automatically:
-			// the Next button already counted as a user gesture.
-			if (interacted && supported) await play();
 		} catch (e) {
 			exercise = null;
 			loadError = e instanceof ApiError ? e.message : 'Could not load a recording.';
@@ -148,7 +139,6 @@
 		}
 		if (speaking) return;
 		interacted = true;
-		listenAttempted = true;
 		voiceError = null;
 		speaking = true;
 		const seq = speechSeq;
@@ -385,10 +375,10 @@
 				/>
 				<p id="dictation-help" class={`${small} ${muted} mx-0 mb-4 mt-[0.35rem]`}>
 					{modeHint}
-					{#if supported && !listenAttempted}
-						Play the recording first.
+					{#if supported}
+						Press the play button to listen, then type and press Enter to check.
 					{:else}
-						Press Enter to check.
+						Type your answer and press Enter to check.
 					{/if}
 				</p>
 
