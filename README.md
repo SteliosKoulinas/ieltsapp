@@ -122,9 +122,10 @@ The recording is produced by the **browser** with the Web Speech API; the API on
 
 Voice quality depends on the operating system, so the page ranks the installed voices instead of using the browser default:
 
-1. neural/natural, enhanced or premium voices first;
-2. network voices over compact local ones;
-3. British English before American, Australian and other accents.
+1. **Samantha** (and its Enhanced variant) first, because it is the most natural built-in English voice on macOS;
+2. neural/natural, enhanced or premium voices;
+3. network voices over compact local ones;
+4. British English before American, Australian and other accents.
 
 The default speed is 0.8×, which is slower than the browser default that learners found too fast. You can switch between Slow (0.65×), Natural (0.8×) and Exam speed (1×), and pick another English voice from the dropdown. The chosen voice is remembered.
 

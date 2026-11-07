@@ -3,8 +3,9 @@
 // The quality of the Web Speech API depends entirely on the voices installed on
 // the device. Instead of using the browser default (which is often a compact,
 // robotic voice), we rank the available voices and pick the most natural
-// English one: neural/enhanced voices first, network voices over local compact
-// ones, and a British accent before other accents for IELTS.
+// English one. Samantha is the preferred default when the device has it; after
+// that, neural/enhanced voices come first, then network voices over local
+// compact ones, and a British accent before other accents for IELTS.
 //
 // Nothing is downloaded from a third party. If the device has good voices, this
 // uses them; otherwise it falls back to the best of what is there.
@@ -17,8 +18,9 @@ export interface VoiceInfo {
 	natural: boolean;
 }
 
-// IELTS is British, so a British voice is preferred. The others are still quite
-// usable and are ranked below it rather than excluded.
+// Samantha is the default on macOS because it sounds the most natural of the
+// built-in English voices. If it is not installed, the accent ranking below
+// applies; British English comes first for IELTS.
 const accentRank: Record<string, number> = {
 	'en-gb': 40,
 	'en-us': 32,
@@ -48,6 +50,9 @@ function scoreVoice(v: SpeechSynthesisVoice): number {
 	const name = v.name.toLowerCase();
 	let score = accentRank[lang] ?? 8;
 
+	// Explicit default: "Samantha" and its installed variants (for example
+	// "Samantha (Enhanced)") come first when the device has one.
+	if (/^samantha\b/.test(name)) score += 200;
 	if (/natural|neural/.test(name)) score += 60;
 	if (/premium|enhanced/.test(name)) score += 50;
 	if (/siri/.test(name)) score += 45;

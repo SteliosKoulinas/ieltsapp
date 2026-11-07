@@ -27,7 +27,9 @@
 	const MAX_PLAYS = 3;
 	const MODE_KEY = 'ielts.listening.mode';
 	const RATE_KEY = 'ielts.listening.rate';
-	const VOICE_KEY = 'ielts.listening.voice';
+	// v2: the automatic default changed to Samantha, so an old stored pick must
+	// not keep overriding it.
+	const VOICE_KEY = 'ielts.listening.voice.v2';
 
 	const modes: { value: ListeningMode; label: string; hint: string }[] = [
 		{ value: 'text', label: 'Words and sentences', hint: 'Type the exact word, phrase or sentence.' },
